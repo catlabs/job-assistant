@@ -1,0 +1,38 @@
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+
+class JobCreateRequest(BaseModel):
+    title: str | None = Field(default=None, description="Optional raw title from the source.")
+    company: str | None = Field(default=None, description="Optional company name from the source.")
+    location: str | None = Field(default=None, description="Optional job location.")
+    url: str | None = Field(default=None, description="Optional source URL.")
+    source: str = Field(default="manual", description="Source identifier for the posting.")
+    description: str = Field(min_length=1, description="Raw job posting text.")
+
+
+class JobAnalysis(BaseModel):
+    normalized_title: str | None = None
+    normalized_company: str | None = None
+    normalized_location: str | None = None
+    seniority: str = "unknown"
+    keywords: list[str] = Field(default_factory=list)
+    summary: str
+
+
+class Job(BaseModel):
+    id: str
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    url: str | None = None
+    source: str
+    description: str
+    analysis: JobAnalysis
+    created_at: datetime
+
+
+class JobListResponse(BaseModel):
+    count: int
+    jobs: list[Job] = Field(default_factory=list)
