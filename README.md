@@ -6,6 +6,7 @@ Personal project: a small **FastAPI** backend to collect job postings, run **lig
 
 - **Health** check for monitoring and local sanity checks
 - **Jobs**: create listings, list all, fetch by id — analysis is computed once on create and stored with the row
+- **Job extraction**: stateless LLM extraction from pasted posting text (`POST /jobs/extract-fields`), no persistence
 - **Ask**: stub Q&A over stored jobs (optional use of `user_profile.json` at the repo root)
 - **SQLite** persistence via **SQLAlchemy** (no auth, minimal surface area)
 
@@ -66,6 +67,9 @@ Open **interactive docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/do
 Environment variables use the prefix `JOB_ASSISTANT_` (see `backend/app/core/config.py`). Copy `backend/.env.example` to `backend/.env` and adjust.
 
 - **`JOB_ASSISTANT_DATABASE_URL`** — default `sqlite:///./job_assistant.db` (file is created next to your current working directory when using a relative path; running from `backend/` keeps the DB under `backend/`).
+- **`JOB_ASSISTANT_OPENAI_API_KEY`** — required for `POST /jobs/extract-fields`
+- **`JOB_ASSISTANT_OPENAI_MODEL`** — extraction model (default `gpt-4.1-mini`)
+- **`JOB_ASSISTANT_OPENAI_TIMEOUT_SECONDS`** — OpenAI timeout (default `20`)
 
 Do **not** commit `.env` or your local `.db` if they contain personal data.
 
@@ -77,6 +81,7 @@ Do **not** commit `.env` or your local `.db` if they contain personal data.
 | GET    | `/health/`  | Liveness       |
 | POST   | `/jobs/`    | Create job     |
 | GET    | `/jobs/`    | List jobs      |
+| POST   | `/jobs/extract-fields` | Stateless LLM field extraction |
 | GET    | `/jobs/{id}`| Get one job    |
 | POST   | `/ask/`     | Placeholder Q&A |
 

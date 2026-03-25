@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, status
 
+from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse
 from app.schemas.job import Job, JobCreateRequest, JobListResponse
+from app.services.job_field_extraction import get_job_field_extraction_service
 from app.services.job_storage import get_job_storage
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -17,6 +19,12 @@ def list_jobs() -> JobListResponse:
     storage = get_job_storage()
     jobs = storage.list_jobs()
     return JobListResponse(count=len(jobs), jobs=jobs)
+
+
+@router.post("/extract-fields", response_model=ExtractFieldsResponse)
+def extract_job_fields(payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
+    service = get_job_field_extraction_service()
+    return service.extract_fields(payload)
 
 
 @router.get("/{job_id}", response_model=Job)
