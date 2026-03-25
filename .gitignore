@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+backend/.venv/
+
+# Environment and local secrets
+.env
+backend/.env
+
+# Local SQLite databases (dev)
+*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.code-workspace
+
+# Local profile/context
+user_profile.json
