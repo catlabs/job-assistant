@@ -11,6 +11,7 @@ if str(_backend_root) not in sys.path:
     sys.path.insert(0, str(_backend_root))
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers.ask import router as ask_router
 from app.api.routers.health import router as health_router
@@ -33,6 +34,15 @@ def create_app() -> FastAPI:
         version=settings.api_version,
         debug=settings.debug,
         lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.get("/", tags=["root"])
