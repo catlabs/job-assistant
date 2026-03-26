@@ -17,11 +17,25 @@ function ExtractPage() {
   const [saveSuccess, setSaveSuccess] = useState('')
   const [savedJobId, setSavedJobId] = useState<string>('')
 
+  const fitLabel = (fitClassification?: ExtractFieldsResponse['fit_classification']) => {
+    if (fitClassification === 'strong_fit') {
+      return 'Strong fit'
+    }
+    if (fitClassification === 'acceptable_intermediate') {
+      return 'Acceptable intermediate'
+    }
+    if (fitClassification === 'misaligned') {
+      return 'Misaligned'
+    }
+    return 'Unavailable'
+  }
+
   const handleExtractFields = async (event: FormEvent) => {
     event.preventDefault()
     setError('')
 
     if (!rawText.trim()) {
+      setFields(null)
       setError('Please paste a job description before extracting fields.')
       return
     }
@@ -110,6 +124,9 @@ function ExtractPage() {
     }
     if (fields.source.trim()) {
       payload.source = fields.source.trim()
+    }
+    if (fields.extraction_ref) {
+      payload.extraction_ref = fields.extraction_ref
     }
 
     setSaveLoading(true)
@@ -246,6 +263,11 @@ function ExtractPage() {
               onChange={(event) => handleFieldChange('keywords', event.target.value)}
             />
           </label>
+
+          <div>
+            <strong>Fit:</strong> {fitLabel(fields.fit_classification)}
+            {fields.fit_rationale ? <p>{fields.fit_rationale}</p> : null}
+          </div>
 
           <button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
             {saveLoading ? 'Saving…' : 'Save'}

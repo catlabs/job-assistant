@@ -8,6 +8,9 @@ export type ExtractFieldsResponse = {
   summary: string
   keywords: string[]
   raw_text: string
+  extraction_ref?: string | null
+  fit_classification?: 'strong_fit' | 'acceptable_intermediate' | 'misaligned' | null
+  fit_rationale?: string
 }
 
 export type JobCreatePayload = {
@@ -17,6 +20,7 @@ export type JobCreatePayload = {
   location?: string
   url?: string
   source?: string
+  extraction_ref?: string
 }
 
 export type JobAnalysis = {
@@ -59,6 +63,9 @@ export const emptyFields: ExtractFieldsResponse = {
   summary: '',
   keywords: [],
   raw_text: '',
+  extraction_ref: null,
+  fit_classification: null,
+  fit_rationale: '',
 }
 
 export const getApiErrorMessage = (payload: unknown): string | null => {
