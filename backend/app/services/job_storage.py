@@ -6,8 +6,10 @@ from sqlalchemy import select
 from app.db.models import JobRecord
 from app.db.session import get_db_session
 from app.schemas.job import Job, JobAnalysis, JobCreateRequest
+from app.services.extraction_fit_cache import get_extraction_fit_cache
 from app.services.job_analysis import analyze_job_posting
 from app.services.job_fit_assessment import get_job_fit_assessment_service
+from app.services.text_fingerprint import fingerprint_text
 
 
 class JobStorage:
@@ -19,6 +21,7 @@ class JobStorage:
             payload.company,
             payload.location,
             payload.description,
+            payload.extraction_ref,
         )
         record = JobRecord(
             id=str(uuid4()),
@@ -85,6 +88,7 @@ class JobStorage:
         company: str | None,
         location: str | None,
         description: str,
+        extraction_ref: str | None,
     ) -> JobAnalysis:
         analysis = JobAnalysis(
             **analyze_job_posting(
@@ -96,6 +100,20 @@ class JobStorage:
                 }
             )
         )
+
+        cached_fit = None
+        if extraction_ref:
+            # Reuse fit from extraction only when ref and description fingerprint still match.
+            cached_fit = get_extraction_fit_cache().get_matching(
+                extraction_ref=extraction_ref,
+                text_fingerprint=fingerprint_text(description),
+            )
+
+        if cached_fit is not None:
+            analysis.fit_classification = cached_fit.fit_classification
+            analysis.fit_rationale = cached_fit.fit_rationale
+            return analysis
+
         fit_result = get_job_fit_assessment_service().assess_job_fit(
             title=title,
             company=company,

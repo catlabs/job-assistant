@@ -1,4 +1,5 @@
 from functools import lru_cache
+from uuid import uuid4
 
 import httpx
 from fastapi import HTTPException, status
@@ -7,6 +8,9 @@ from pydantic import ValidationError
 
 from app.core.config import get_settings
 from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse, ExtractedJobFields
+from app.services.extraction_fit_cache import get_extraction_fit_cache
+from app.services.job_fit_assessment import get_job_fit_assessment_service
+from app.services.text_fingerprint import fingerprint_text
 
 MAX_LLM_INPUT_CHARS = 12_000
 
@@ -85,7 +89,27 @@ class JobFieldExtractionService:
                 detail="LLM returned invalid extraction JSON.",
             ) from exc
 
-        return ExtractFieldsResponse(raw_text=payload.raw_text, **extracted.model_dump())
+        fit_result = get_job_fit_assessment_service().assess_job_fit(
+            title=extracted.title or None,
+            company=extracted.company or None,
+            location=extracted.location or None,
+            description=payload.raw_text,
+        )
+        extraction_ref = str(uuid4())
+        get_extraction_fit_cache().put(
+            extraction_ref=extraction_ref,
+            text_fingerprint=fingerprint_text(payload.raw_text),
+            fit_classification=fit_result.fit_classification,
+            fit_rationale=fit_result.fit_rationale,
+        )
+
+        return ExtractFieldsResponse(
+            raw_text=payload.raw_text,
+            extraction_ref=extraction_ref,
+            fit_classification=fit_result.fit_classification,
+            fit_rationale=fit_result.fit_rationale,
+            **extracted.model_dump(),
+        )
 
 
 @lru_cache

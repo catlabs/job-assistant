@@ -11,6 +11,10 @@ class JobCreateRequest(BaseModel):
     url: str | None = Field(default=None, description="Optional source URL.")
     source: str = Field(default="manual", description="Source identifier for the posting.")
     description: str = Field(min_length=1, description="Raw job posting text.")
+    extraction_ref: str | None = Field(
+        default=None,
+        description="Opaque extraction reference returned by /jobs/extract-fields.",
+    )
 
 
 class JobAnalysis(BaseModel):

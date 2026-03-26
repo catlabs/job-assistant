@@ -58,3 +58,6 @@ class ExtractedJobFields(BaseModel):
 
 class ExtractFieldsResponse(ExtractedJobFields):
     raw_text: str
+    extraction_ref: str | None = None
+    fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None = None
+    fit_rationale: str = ""
