@@ -86,8 +86,18 @@ button:disabled {
 
 .jobs-list-header {
   display: flex;
+  align-items: flex-end;
+  gap: 12px;
   justify-content: flex-end;
   margin-bottom: 8px;
+}
+
+.fit-filter-control {
+  font-weight: 600;
+}
+
+.fit-filter-control select {
+  min-width: 220px;
 }
 
 .job-item {
@@ -115,6 +125,17 @@ button:disabled {
 
 .job-item p:last-child {
   margin-bottom: 0;
+}
+
+.fit-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e9eef8;
+  color: #1e3a66;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .job-item:hover,
@@ -169,4 +190,34 @@ button:disabled {
 
 .muted {
   color: #666;
+}
+
+.app-header {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+.app-nav-wrap {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.app-nav {
+  display: flex;
+  gap: 12px;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: #1e3a66;
+  background: #e9eef8;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: 600;
+}
+
+.nav-link-active {
+  color: #fff;
+  background: #1f6feb;
 }
