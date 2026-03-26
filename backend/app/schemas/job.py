@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -19,6 +20,8 @@ class JobAnalysis(BaseModel):
     seniority: str = "unknown"
     keywords: list[str] = Field(default_factory=list)
     summary: str
+    fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None = None
+    fit_rationale: str = ""
 
 
 class Job(BaseModel):

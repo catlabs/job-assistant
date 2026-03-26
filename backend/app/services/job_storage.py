@@ -7,6 +7,7 @@ from app.db.models import JobRecord
 from app.db.session import get_db_session
 from app.schemas.job import Job, JobAnalysis, JobCreateRequest
 from app.services.job_analysis import analyze_job_posting
+from app.services.job_fit_assessment import get_job_fit_assessment_service
 
 
 class JobStorage:
@@ -85,7 +86,7 @@ class JobStorage:
         location: str | None,
         description: str,
     ) -> JobAnalysis:
-        return JobAnalysis(
+        analysis = JobAnalysis(
             **analyze_job_posting(
                 {
                     "title": title,
@@ -95,6 +96,16 @@ class JobStorage:
                 }
             )
         )
+        fit_result = get_job_fit_assessment_service().assess_job_fit(
+            title=title,
+            company=company,
+            location=location,
+            description=description,
+        )
+        if fit_result.fit_classification:
+            analysis.fit_classification = fit_result.fit_classification
+            analysis.fit_rationale = fit_result.fit_rationale
+        return analysis
 
 
 InMemoryJobStorage = JobStorage
