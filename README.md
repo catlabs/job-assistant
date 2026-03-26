@@ -16,6 +16,7 @@ Personal project: a small **FastAPI** backend to collect job postings, run **lig
 - FastAPI, Uvicorn
 - Pydantic / pydantic-settings
 - SQLAlchemy 2.x + SQLite
+- Frontend: Vite + React + TypeScript
 
 ## Project layout
 
@@ -61,6 +62,23 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Open **interactive docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+## Frontend quick start
+
+From the repository root:
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+The Vite app runs at [http://localhost:5173](http://localhost:5173) and calls the backend using:
+
+- `VITE_API_BASE_URL` (default in `.env.example`: `http://127.0.0.1:8000`)
+
+Make sure the backend is running at the same base URL before clicking **Extract fields**.
 
 ## Configuration
 
