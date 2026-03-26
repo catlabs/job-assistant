@@ -17,6 +17,13 @@ class JobCreateRequest(BaseModel):
     )
 
 
+class JobDecisionV1(BaseModel):
+    headline: str
+    detail: str
+    risk_flags: list[str] = Field(default_factory=list, max_length=4)
+    clarifying_questions: list[str] = Field(default_factory=list, max_length=3)
+
+
 class JobAnalysis(BaseModel):
     normalized_title: str | None = None
     normalized_company: str | None = None
@@ -26,6 +33,7 @@ class JobAnalysis(BaseModel):
     summary: str
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None = None
     fit_rationale: str = ""
+    decision: JobDecisionV1 | None = None
 
 
 class Job(BaseModel):

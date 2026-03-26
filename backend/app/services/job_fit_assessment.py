@@ -3,24 +3,33 @@ from typing import Any, Literal
 
 import httpx
 from openai import APIConnectionError, APIError, APITimeoutError, OpenAI
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import get_settings
 from app.services.profile_loader import load_user_profile
+from app.services.profile_assessment_context import build_profile_assessment_context
+from app.schemas.job import JobDecisionV1
 
 MAX_JOB_DESCRIPTION_CHARS = 6_000
-MAX_INTERPRETATION_RULES = 3
-MAX_SIGNALS_PER_BUCKET = 4
 
 
-class FitAssessmentResponse(BaseModel):
+class DecisionAssessmentResponse(BaseModel):
+    headline: str
+    detail: str
+    risk_flags: list[str] = Field(default_factory=list, max_length=4)
+    clarifying_questions: list[str] = Field(default_factory=list, max_length=3)
+
+
+class CombinedAssessmentResponse(BaseModel):
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"]
     fit_rationale: str
+    decision: DecisionAssessmentResponse
 
 
 class JobFitAssessmentResult(BaseModel):
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None = None
     fit_rationale: str = ""
+    decision: JobDecisionV1 | None = None
 
 
 class JobFitAssessmentService:
@@ -40,7 +49,7 @@ class JobFitAssessmentService:
         if not api_key:
             return JobFitAssessmentResult()
 
-        profile_context = self._build_profile_context(load_user_profile())
+        profile_context = build_profile_assessment_context(load_user_profile())
         if profile_context is None:
             return JobFitAssessmentResult()
 
@@ -69,71 +78,34 @@ class JobFitAssessmentService:
                     {
                         "role": "system",
                         "content": (
-                            "You classify job fit for a specific profile. "
+                            "You assess job fit and provide concise decision support for a specific profile. "
                             "Return only valid JSON matching the response schema."
                         ),
                     },
                     {"role": "user", "content": prompt},
                 ],
-                response_format=FitAssessmentResponse,
+                response_format=CombinedAssessmentResponse,
                 temperature=0,
             )
             parsed = completion.choices[0].message.parsed
             if parsed is None:
                 return JobFitAssessmentResult()
-            result = FitAssessmentResponse.model_validate(parsed)
+            result = CombinedAssessmentResponse.model_validate(parsed)
         except (APITimeoutError, APIConnectionError, APIError, ValidationError):
             return JobFitAssessmentResult()
 
         return JobFitAssessmentResult(
             fit_classification=result.fit_classification,
             fit_rationale=result.fit_rationale.strip(),
+            decision=JobDecisionV1(
+                headline=result.decision.headline.strip(),
+                detail=result.decision.detail.strip(),
+                risk_flags=[item.strip() for item in result.decision.risk_flags if item.strip()][:4],
+                clarifying_questions=[
+                    item.strip() for item in result.decision.clarifying_questions if item.strip()
+                ][:3],
+            ),
         )
-
-    def _build_profile_context(self, profile: dict[str, Any]) -> dict[str, Any] | None:
-        fit_model = profile.get("job_fit_model")
-        preferences = profile.get("analysis_preferences_for_job_assistant")
-        if not isinstance(fit_model, dict) or not isinstance(preferences, dict):
-            return None
-
-        labels = preferences.get("classification_labels")
-        if not isinstance(labels, list) or not labels:
-            return None
-
-        valid_labels = {"strong_fit", "acceptable_intermediate", "misaligned"}
-        normalized_labels = [label for label in labels if isinstance(label, str)]
-        if set(normalized_labels) != valid_labels:
-            return None
-
-        interpretation_rules = preferences.get("interpretation_rules")
-        interpretation_subset = []
-        if isinstance(interpretation_rules, list):
-            interpretation_subset = [
-                rule for rule in interpretation_rules if isinstance(rule, str) and rule.strip()
-            ][:MAX_INTERPRETATION_RULES]
-
-        strong_fit_signals = self._extract_signal_subset(fit_model.get("strong_fit_signals"))
-        acceptable_signals = self._extract_signal_subset(
-            fit_model.get("acceptable_but_intermediate_signals")
-        )
-        misaligned_signals = self._extract_signal_subset(fit_model.get("misaligned_signals"))
-        if not strong_fit_signals or not acceptable_signals or not misaligned_signals:
-            return None
-
-        return {
-            "labels": normalized_labels,
-            "strong_fit_signals": strong_fit_signals,
-            "acceptable_signals": acceptable_signals,
-            "misaligned_signals": misaligned_signals,
-            "interpretation_rules": interpretation_subset,
-        }
-
-    def _extract_signal_subset(self, value: Any) -> list[str]:
-        if not isinstance(value, list):
-            return []
-        return [item for item in value if isinstance(item, str) and item.strip()][
-            :MAX_SIGNALS_PER_BUCKET
-        ]
 
     def _build_prompt(
         self,
@@ -145,7 +117,7 @@ class JobFitAssessmentService:
         description: str,
     ) -> str:
         lines = [
-            "Classify this job using only the provided profile vocabulary.",
+            "Classify this job and provide concise decision support using only the provided profile vocabulary.",
             f"Allowed labels: {', '.join(profile_context['labels'])}",
             "Job fit model signals:",
             f"- strong_fit_signals: {profile_context['strong_fit_signals']}",
@@ -156,12 +128,22 @@ class JobFitAssessmentService:
             lines.append(
                 f"Interpretation guidance: {profile_context['interpretation_rules']}"
             )
+        if profile_context["decision_dimensions"]:
+            lines.append(
+                f"Decision dimensions to consider when relevant: {profile_context['decision_dimensions']}"
+            )
 
         lines.extend(
             [
                 "Output rules:",
                 "- fit_classification must be one allowed label.",
                 "- fit_rationale must be 1 to 3 short factual sentences.",
+                "- Do not use scores, percentages, or rankings.",
+                "- decision.headline must be one short line on whether this job is worth spending time on.",
+                "- decision.detail must be 2 to 4 short factual sentences.",
+                "- decision.risk_flags must contain up to 4 short bullet-style strings.",
+                "- decision.clarifying_questions must contain up to 3 short question strings.",
+                "- Use fit_classification as context, but do not duplicate it as the whole decision output.",
                 "",
                 "Job input:",
                 f"- title: {title or ''}",

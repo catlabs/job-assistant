@@ -101,6 +101,7 @@ class JobFieldExtractionService:
             text_fingerprint=fingerprint_text(payload.raw_text),
             fit_classification=fit_result.fit_classification,
             fit_rationale=fit_result.fit_rationale,
+            decision=fit_result.decision,
         )
 
         return ExtractFieldsResponse(
@@ -108,6 +109,7 @@ class JobFieldExtractionService:
             extraction_ref=extraction_ref,
             fit_classification=fit_result.fit_classification,
             fit_rationale=fit_result.fit_rationale,
+            decision=fit_result.decision,
             **extracted.model_dump(),
         )
 

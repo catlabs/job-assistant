@@ -112,6 +112,7 @@ class JobStorage:
         if cached_fit is not None:
             analysis.fit_classification = cached_fit.fit_classification
             analysis.fit_rationale = cached_fit.fit_rationale
+            analysis.decision = cached_fit.decision
             return analysis
 
         fit_result = get_job_fit_assessment_service().assess_job_fit(
@@ -120,9 +121,9 @@ class JobStorage:
             location=location,
             description=description,
         )
-        if fit_result.fit_classification:
-            analysis.fit_classification = fit_result.fit_classification
-            analysis.fit_rationale = fit_result.fit_rationale
+        analysis.fit_classification = fit_result.fit_classification
+        analysis.fit_rationale = fit_result.fit_rationale
+        analysis.decision = fit_result.decision
         return analysis
 
 

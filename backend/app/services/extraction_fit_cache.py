@@ -4,6 +4,8 @@ from functools import lru_cache
 from threading import Lock
 from typing import Literal
 
+from app.schemas.job import JobDecisionV1
+
 
 FIT_TTL_MINUTES = 30
 
@@ -14,6 +16,7 @@ class ExtractionFitCacheEntry:
     text_fingerprint: str
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None
     fit_rationale: str
+    decision: JobDecisionV1 | None
     expires_at: datetime
 
 
@@ -29,6 +32,7 @@ class ExtractionFitCache:
         text_fingerprint: str,
         fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None,
         fit_rationale: str,
+        decision: JobDecisionV1 | None,
     ) -> None:
         now = datetime.now(timezone.utc)
         entry = ExtractionFitCacheEntry(
@@ -36,6 +40,7 @@ class ExtractionFitCache:
             text_fingerprint=text_fingerprint,
             fit_classification=fit_classification,
             fit_rationale=fit_rationale,
+            decision=decision,
             expires_at=now + timedelta(minutes=FIT_TTL_MINUTES),
         )
         with self._lock:

@@ -6,7 +6,7 @@ Personal project: a small **FastAPI** backend to collect job postings, run **lig
 
 - **Health** check for monitoring and local sanity checks
 - **Jobs**: create listings, list all, fetch by id — analysis is computed once on create and stored with the row
-- **Job fit (optional)**: newly saved jobs may include AI-generated `fit_classification` + short rationale in `analysis_json` when `JOB_ASSISTANT_OPENAI_API_KEY` and `user_profile.json` are both configured
+- **Job fit + decision analysis (optional)**: newly saved jobs may include AI-generated `fit_classification`, `fit_rationale`, and `decision` fields in `analysis_json` when `JOB_ASSISTANT_OPENAI_API_KEY` and `user_profile.json` are both configured
 - **Job extraction**: stateless LLM extraction from pasted posting text (`POST /jobs/extract-fields`), no persistence
 - **Ask**: stub Q&A over stored jobs (optional use of `user_profile.json` at the repo root)
 - **SQLite** persistence via **SQLAlchemy** (no auth, minimal surface area)

@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.job import JobDecisionV1
+
 SENIORITY_LEVELS: tuple[str, ...] = ("Intern", "Junior", "Mid", "Senior", "Lead", "Staff", "")
 MIN_RAW_TEXT_LENGTH = 40
 MAX_RAW_TEXT_LENGTH = 100_000
@@ -61,3 +63,4 @@ class ExtractFieldsResponse(ExtractedJobFields):
     extraction_ref: str | None = None
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None = None
     fit_rationale: str = ""
+    decision: JobDecisionV1 | None = None
