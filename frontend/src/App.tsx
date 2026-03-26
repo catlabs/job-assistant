@@ -35,6 +35,32 @@ type JobCreatePayload = {
   source?: string
 }
 
+type JobAnalysis = {
+  normalized_title?: string | null
+  normalized_company?: string | null
+  normalized_location?: string | null
+  seniority?: string | null
+  keywords?: string[] | null
+  summary?: string | null
+}
+
+type Job = {
+  id: string | number
+  title: string | null
+  company: string | null
+  location: string | null
+  url?: string | null
+  source?: string | null
+  description?: string | null
+  analysis?: JobAnalysis | null
+  created_at?: string | null
+}
+
+type JobListResponse = {
+  count: number
+  jobs: Job[]
+}
+
 const getApiErrorMessage = (payload: unknown): string | null => {
   if (!payload || typeof payload !== 'object') {
     return null
@@ -75,6 +101,58 @@ function App() {
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState('')
   const [savedJobId, setSavedJobId] = useState<string>('')
+  const [showJobs, setShowJobs] = useState(false)
+  const [jobsLoading, setJobsLoading] = useState(false)
+  const [jobsError, setJobsError] = useState('')
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+
+  const fetchJobs = async () => {
+    setJobsError('')
+
+    if (!API_BASE_URL) {
+      setJobsError('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+      setJobs([])
+      return
+    }
+
+    setJobsLoading(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/jobs/`)
+      const responseBody = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        const apiMessage = getApiErrorMessage(responseBody)
+        throw new Error(apiMessage || 'Could not load saved jobs.')
+      }
+
+      const data = responseBody as JobListResponse
+      const nextJobs = Array.isArray(data.jobs) ? data.jobs : []
+      setJobs(nextJobs)
+      setSelectedJob((currentSelectedJob) => {
+        if (!currentSelectedJob) {
+          return null
+        }
+
+        const refreshedSelectedJob = nextJobs.find(
+          (job) => String(job.id) === String(currentSelectedJob.id),
+        )
+        return refreshedSelectedJob ?? null
+      })
+    } catch (jobsRequestError) {
+      if (jobsRequestError instanceof TypeError) {
+        setJobsError('Network error while loading jobs. Please check your connection and try again.')
+      } else if (jobsRequestError instanceof Error) {
+        setJobsError(jobsRequestError.message)
+      } else {
+        setJobsError('Could not load saved jobs.')
+      }
+      setJobs([])
+    } finally {
+      setJobsLoading(false)
+    }
+  }
 
   const handleExtractFields = async (event: FormEvent) => {
     event.preventDefault()
@@ -192,6 +270,9 @@ function App() {
       const jobId = (responseBody as { id?: string | number } | null)?.id
       setSavedJobId(jobId === undefined || jobId === null ? '' : String(jobId))
       setSaveSuccess('Job saved successfully.')
+      if (showJobs) {
+        await fetchJobs()
+      }
     } catch (saveRequestError) {
       if (saveRequestError instanceof TypeError) {
         setSaveError('Network error while saving. Please check your connection and try again.')
@@ -208,6 +289,29 @@ function App() {
 
   const saveDescription = rawText.trim() || fields?.raw_text?.trim() || ''
   const isSaveDisabled = !fields || !saveDescription || saveLoading
+  const formatCreatedAt = (createdAt?: string | null) => {
+    if (!createdAt) {
+      return 'Unknown date'
+    }
+
+    const date = new Date(createdAt)
+    if (Number.isNaN(date.getTime())) {
+      return createdAt
+    }
+
+    return date.toLocaleString()
+  }
+
+  const handleToggleJobs = async () => {
+    if (showJobs) {
+      setShowJobs(false)
+      setSelectedJob(null)
+      return
+    }
+
+    setShowJobs(true)
+    await fetchJobs()
+  }
 
   return (
     <main className="page">
@@ -315,6 +419,136 @@ function App() {
           {savedJobId && <p>Saved job id: {savedJobId}</p>}
         </section>
       )}
+
+      <section className="panel">
+        <button type="button" className="secondary-button" onClick={handleToggleJobs}>
+          {showJobs ? 'Hide saved jobs' : 'Show saved jobs'}
+        </button>
+
+        {showJobs && (
+          <>
+            {jobsLoading && <p>Loading saved jobs…</p>}
+            {jobsError && <p className="error">{jobsError}</p>}
+            {!jobsLoading && !jobsError && jobs.length === 0 && (
+              <p className="muted">No saved jobs yet.</p>
+            )}
+            {!jobsLoading && !jobsError && jobs.length > 0 && (
+              <ul className="jobs-list">
+                {jobs.map((job) => {
+                  const isSelected = selectedJob ? String(selectedJob.id) === String(job.id) : false
+                  return (
+                    <li
+                      key={job.id}
+                      className={`job-item ${isSelected ? 'job-item-selected' : ''}`}
+                      onClick={() => setSelectedJob(job)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setSelectedJob(job)
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <p>
+                        <strong>{job.title || 'Untitled job'}</strong>
+                      </p>
+                      <p>{job.company || 'Unknown company'}</p>
+                      <p>{job.location || 'Unknown location'}</p>
+                      <p className="muted">
+                        Source: {job.source || 'unknown'} | ID: {job.id}
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {!jobsLoading && !jobsError && selectedJob && (
+              <section className="panel job-detail-panel">
+                <div className="job-detail-header">
+                  <h3>Job details</h3>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setSelectedJob(null)}
+                  >
+                    Back to list
+                  </button>
+                </div>
+
+                <p>
+                  <strong>Title:</strong> {selectedJob.title || 'Untitled job'}
+                </p>
+                <p>
+                  <strong>Company:</strong> {selectedJob.company || 'Unknown company'}
+                </p>
+                <p>
+                  <strong>Location:</strong> {selectedJob.location || 'Unknown location'}
+                </p>
+                <p>
+                  <strong>URL:</strong>{' '}
+                  {selectedJob.url ? (
+                    <a href={selectedJob.url} target="_blank" rel="noreferrer">
+                      {selectedJob.url}
+                    </a>
+                  ) : (
+                    <span className="muted">Not available</span>
+                  )}
+                </p>
+                <p>
+                  <strong>Source:</strong> {selectedJob.source || 'unknown'}
+                </p>
+                <p>
+                  <strong>Created:</strong>{' '}
+                  {formatCreatedAt(selectedJob.created_at)}
+                </p>
+
+                <div>
+                  <p>
+                    <strong>Description</strong>
+                  </p>
+                  <p className="job-description">
+                    {selectedJob.description || 'No description available.'}
+                  </p>
+                </div>
+
+                <div>
+                  <p>
+                    <strong>Analysis</strong>
+                  </p>
+                  <p>
+                    <strong>Seniority:</strong> {selectedJob.analysis?.seniority || 'Unknown'}
+                  </p>
+                  <p>
+                    <strong>Summary:</strong> {selectedJob.analysis?.summary || 'Not available'}
+                  </p>
+                  <p>
+                    <strong>Keywords:</strong>{' '}
+                    {selectedJob.analysis?.keywords && selectedJob.analysis.keywords.length > 0
+                      ? selectedJob.analysis.keywords.join(', ')
+                      : 'None'}
+                  </p>
+                  {selectedJob.analysis?.normalized_title && (
+                    <p>
+                      <strong>Normalized title:</strong> {selectedJob.analysis.normalized_title}
+                    </p>
+                  )}
+                  {selectedJob.analysis?.normalized_company && (
+                    <p>
+                      <strong>Normalized company:</strong> {selectedJob.analysis.normalized_company}
+                    </p>
+                  )}
+                  {selectedJob.analysis?.normalized_location && (
+                    <p>
+                      <strong>Normalized location:</strong> {selectedJob.analysis.normalized_location}
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </section>
     </main>
   )
 }

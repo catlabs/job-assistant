@@ -70,3 +70,65 @@ button:disabled {
   color: #136b2c;
   font-weight: 600;
 }
+
+.secondary-button {
+  background: #e9eef8;
+  color: #1e3a66;
+}
+
+.jobs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.job-item {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+.job-item p {
+  margin: 0 0 6px;
+}
+
+.job-item p:last-child {
+  margin-bottom: 0;
+}
+
+.job-item:hover,
+.job-item:focus {
+  border-color: #8db1ee;
+}
+
+.job-item-selected {
+  border-color: #1f6feb;
+  background: #edf4ff;
+}
+
+.job-detail-panel {
+  margin-top: 12px;
+}
+
+.job-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.job-detail-header h3 {
+  margin: 0;
+}
+
+.job-description {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.muted {
+  color: #666;
+}
