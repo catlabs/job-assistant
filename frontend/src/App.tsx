@@ -106,6 +106,9 @@ function App() {
   const [jobsError, setJobsError] = useState('')
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [compareSelectedIds, setCompareSelectedIds] = useState<string[]>([])
+  const [isComparePanelVisible, setIsComparePanelVisible] = useState(false)
+  const [compareHint, setCompareHint] = useState('')
 
   const fetchJobs = async () => {
     setJobsError('')
@@ -140,6 +143,14 @@ function App() {
         )
         return refreshedSelectedJob ?? null
       })
+      setCompareSelectedIds((currentIds) => {
+        const availableIds = new Set(nextJobs.map((job) => String(job.id)))
+        const nextIds = currentIds.filter((id) => availableIds.has(id))
+        if (nextIds.length < 2) {
+          setIsComparePanelVisible(false)
+        }
+        return nextIds
+      })
     } catch (jobsRequestError) {
       if (jobsRequestError instanceof TypeError) {
         setJobsError('Network error while loading jobs. Please check your connection and try again.')
@@ -149,6 +160,9 @@ function App() {
         setJobsError('Could not load saved jobs.')
       }
       setJobs([])
+      setCompareSelectedIds([])
+      setIsComparePanelVisible(false)
+      setCompareHint('')
     } finally {
       setJobsLoading(false)
     }
@@ -306,11 +320,44 @@ function App() {
     if (showJobs) {
       setShowJobs(false)
       setSelectedJob(null)
+      setCompareSelectedIds([])
+      setIsComparePanelVisible(false)
+      setCompareHint('')
       return
     }
 
     setShowJobs(true)
     await fetchJobs()
+  }
+
+  const handleToggleCompareSelection = (jobId: string) => {
+    setCompareHint('')
+    setCompareSelectedIds((currentIds) => {
+      if (currentIds.includes(jobId)) {
+        return currentIds.filter((id) => id !== jobId)
+      }
+
+      // Keep compare intentionally capped at 2 so the table stays minimal and readable.
+      if (currentIds.length >= 2) {
+        setCompareHint('Select only 2 jobs to compare.')
+        return currentIds
+      }
+
+      return [...currentIds, jobId]
+    })
+    setIsComparePanelVisible(false)
+  }
+
+  const comparedJobs = compareSelectedIds
+    .map((id) => jobs.find((job) => String(job.id) === id))
+    .filter((job): job is Job => Boolean(job))
+
+  const canCompare = comparedJobs.length === 2
+  const shouldShowComparePanel = isComparePanelVisible && canCompare
+  const handleClearComparison = () => {
+    setCompareSelectedIds([])
+    setIsComparePanelVisible(false)
+    setCompareHint('')
   }
 
   return (
@@ -433,35 +480,157 @@ function App() {
               <p className="muted">No saved jobs yet.</p>
             )}
             {!jobsLoading && !jobsError && jobs.length > 0 && (
-              <ul className="jobs-list">
-                {jobs.map((job) => {
-                  const isSelected = selectedJob ? String(selectedJob.id) === String(job.id) : false
-                  return (
-                    <li
-                      key={job.id}
-                      className={`job-item ${isSelected ? 'job-item-selected' : ''}`}
-                      onClick={() => setSelectedJob(job)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          setSelectedJob(job)
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <p>
-                        <strong>{job.title || 'Untitled job'}</strong>
-                      </p>
-                      <p>{job.company || 'Unknown company'}</p>
-                      <p>{job.location || 'Unknown location'}</p>
-                      <p className="muted">
-                        Source: {job.source || 'unknown'} | ID: {job.id}
-                      </p>
-                    </li>
-                  )
-                })}
-              </ul>
+              <>
+                <div className="jobs-list-header">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={!canCompare}
+                    onClick={() => setIsComparePanelVisible(true)}
+                  >
+                    Compare selected
+                  </button>
+                </div>
+                {compareHint && <p className="muted compare-hint">{compareHint}</p>}
+                <ul className="jobs-list">
+                  {jobs.map((job) => {
+                    const jobId = String(job.id)
+                    const isSelected = selectedJob ? String(selectedJob.id) === jobId : false
+                    const isCompared = compareSelectedIds.includes(jobId)
+                    return (
+                      <li
+                        key={job.id}
+                        className={`job-item ${isSelected ? 'job-item-selected' : ''}`}
+                        onClick={() => setSelectedJob(job)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            setSelectedJob(job)
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="job-item-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={isCompared}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              event.stopPropagation()
+                              handleToggleCompareSelection(jobId)
+                            }}
+                            onKeyDown={(event) => event.stopPropagation()}
+                            aria-label={`Compare ${job.title || `job ${job.id}`}`}
+                          />
+                        </div>
+                        <div>
+                          <p>
+                            <strong>{job.title || 'Untitled job'}</strong>
+                          </p>
+                          <p>{job.company || 'Unknown company'}</p>
+                          <p>{job.location || 'Unknown location'}</p>
+                          <p className="muted">
+                            Source: {job.source || 'unknown'} | ID: {job.id}
+                          </p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            )}
+            {!jobsLoading && !jobsError && shouldShowComparePanel && comparedJobs.length === 2 && (
+              <section className="panel">
+                <div className="job-detail-header">
+                  <h3>Job comparison</h3>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleClearComparison}
+                  >
+                    Clear comparison
+                  </button>
+                </div>
+                <table className="compare-table">
+                  <tbody>
+                    <tr>
+                      <th scope="row">Field</th>
+                      <th>{comparedJobs[0].title || 'Untitled job'}</th>
+                      <th>{comparedJobs[1].title || 'Untitled job'}</th>
+                    </tr>
+                    <tr>
+                      <th scope="row">Title</th>
+                      <td>{comparedJobs[0].title || 'Untitled job'}</td>
+                      <td>{comparedJobs[1].title || 'Untitled job'}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Company</th>
+                      <td>{comparedJobs[0].company || 'Unknown company'}</td>
+                      <td>{comparedJobs[1].company || 'Unknown company'}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Location</th>
+                      <td>{comparedJobs[0].location || 'Unknown location'}</td>
+                      <td>{comparedJobs[1].location || 'Unknown location'}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Source</th>
+                      <td>{comparedJobs[0].source || 'unknown'}</td>
+                      <td>{comparedJobs[1].source || 'unknown'}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Seniority</th>
+                      <td>{comparedJobs[0].analysis?.seniority || 'Unknown'}</td>
+                      <td>{comparedJobs[1].analysis?.seniority || 'Unknown'}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Summary</th>
+                      <td>{comparedJobs[0].analysis?.summary || 'Not available'}</td>
+                      <td>{comparedJobs[1].analysis?.summary || 'Not available'}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Keywords</th>
+                      <td>
+                        {comparedJobs[0].analysis?.keywords && comparedJobs[0].analysis.keywords.length > 0
+                          ? comparedJobs[0].analysis.keywords.join(', ')
+                          : 'None'}
+                      </td>
+                      <td>
+                        {comparedJobs[1].analysis?.keywords && comparedJobs[1].analysis.keywords.length > 0
+                          ? comparedJobs[1].analysis.keywords.join(', ')
+                          : 'None'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Created date</th>
+                      <td>{formatCreatedAt(comparedJobs[0].created_at)}</td>
+                      <td>{formatCreatedAt(comparedJobs[1].created_at)}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">URL</th>
+                      <td>
+                        {comparedJobs[0].url ? (
+                          <a href={comparedJobs[0].url} target="_blank" rel="noreferrer">
+                            {comparedJobs[0].url}
+                          </a>
+                        ) : (
+                          <span className="muted">Not available</span>
+                        )}
+                      </td>
+                      <td>
+                        {comparedJobs[1].url ? (
+                          <a href={comparedJobs[1].url} target="_blank" rel="noreferrer">
+                            {comparedJobs[1].url}
+                          </a>
+                        ) : (
+                          <span className="muted">Not available</span>
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
             )}
             {!jobsLoading && !jobsError && selectedJob && (
               <section className="panel job-detail-panel">

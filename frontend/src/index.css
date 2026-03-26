@@ -84,12 +84,29 @@ button:disabled {
   gap: 10px;
 }
 
+.jobs-list-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
 .job-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
   padding: 10px;
   background: #fafafa;
   cursor: pointer;
+}
+
+.job-item-checkbox {
+  padding-top: 2px;
+}
+
+.job-item-checkbox input {
+  margin: 0;
 }
 
 .job-item p {
@@ -127,6 +144,27 @@ button:disabled {
 .job-description {
   white-space: pre-wrap;
   line-height: 1.5;
+}
+
+.compare-hint {
+  margin: 0 0 8px;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.compare-table th,
+.compare-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.compare-table th {
+  background: #f6f8fb;
 }
 
 .muted {
