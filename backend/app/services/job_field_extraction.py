@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+import httpx
 from fastapi import HTTPException, status
 from openai import APIConnectionError, APIError, APITimeoutError, OpenAI
 from pydantic import ValidationError
@@ -39,7 +40,14 @@ class JobFieldExtractionService:
             )
 
         if self._client is None:
-            self._client = OpenAI(api_key=api_key, timeout=settings.openai_timeout_seconds)
+            # openai==1.51.x is not compatible with httpx 0.28's removed "proxies" arg
+            # when using its default internal client wrapper.
+            http_client = httpx.Client(timeout=settings.openai_timeout_seconds)
+            self._client = OpenAI(
+                api_key=api_key,
+                timeout=settings.openai_timeout_seconds,
+                http_client=http_client,
+            )
 
         llm_input = payload.raw_text[:MAX_LLM_INPUT_CHARS]
         user_prompt = f"Extract fields from this job posting:\n\n{llm_input}"
