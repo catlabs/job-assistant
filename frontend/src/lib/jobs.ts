@@ -1,3 +1,10 @@
+export type JobDecisionV1 = {
+  headline: string
+  detail: string
+  risk_flags: string[]
+  clarifying_questions: string[]
+}
+
 export type ExtractFieldsResponse = {
   title: string
   company: string
@@ -11,6 +18,7 @@ export type ExtractFieldsResponse = {
   extraction_ref?: string | null
   fit_classification?: 'strong_fit' | 'acceptable_intermediate' | 'misaligned' | null
   fit_rationale?: string
+  decision?: JobDecisionV1 | null
 }
 
 export type JobCreatePayload = {
@@ -32,6 +40,7 @@ export type JobAnalysis = {
   summary?: string | null
   fit_classification?: 'strong_fit' | 'acceptable_intermediate' | 'misaligned' | null
   fit_rationale?: string | null
+  decision?: JobDecisionV1 | null
 }
 
 export type Job = {
@@ -66,6 +75,7 @@ export const emptyFields: ExtractFieldsResponse = {
   extraction_ref: null,
   fit_classification: null,
   fit_rationale: '',
+  decision: null,
 }
 
 export const getApiErrorMessage = (payload: unknown): string | null => {

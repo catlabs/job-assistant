@@ -382,6 +382,48 @@ function JobsPage() {
                   <strong>Fit rationale:</strong> {selectedJob.analysis.fit_rationale}
                 </p>
               )}
+              {(selectedJob.analysis?.decision?.headline?.trim() ||
+                selectedJob.analysis?.decision?.detail?.trim() ||
+                (selectedJob.analysis?.decision?.risk_flags?.length ?? 0) > 0 ||
+                (selectedJob.analysis?.decision?.clarifying_questions?.length ?? 0) > 0) && (
+                <div>
+                  <p>
+                    <strong>Decision</strong>
+                  </p>
+                  {selectedJob.analysis?.decision?.headline && (
+                    <p>{selectedJob.analysis.decision.headline}</p>
+                  )}
+                  {selectedJob.analysis?.decision?.detail && (
+                    <p>{selectedJob.analysis.decision.detail}</p>
+                  )}
+                  {(selectedJob.analysis?.decision?.risk_flags?.length ?? 0) > 0 && (
+                    <>
+                      <p>
+                        <strong>Risk flags</strong>
+                      </p>
+                      <ul>
+                        {(selectedJob.analysis?.decision?.risk_flags ?? []).map((riskFlag, index) => (
+                          <li key={`job-risk-flag-${index}`}>{riskFlag}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {(selectedJob.analysis?.decision?.clarifying_questions?.length ?? 0) > 0 && (
+                    <>
+                      <p>
+                        <strong>Clarifying questions</strong>
+                      </p>
+                      <ul>
+                        {(selectedJob.analysis?.decision?.clarifying_questions ?? []).map(
+                          (question, index) => (
+                            <li key={`job-clarifying-question-${index}`}>{question}</li>
+                          ),
+                        )}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              )}
               {selectedJob.analysis?.normalized_title && (
                 <p>
                   <strong>Normalized title:</strong> {selectedJob.analysis.normalized_title}

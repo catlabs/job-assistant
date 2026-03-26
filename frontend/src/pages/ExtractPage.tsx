@@ -7,6 +7,16 @@ import {
   JobCreatePayload,
 } from '../lib/jobs'
 
+type EditableExtractField =
+  | 'title'
+  | 'company'
+  | 'location'
+  | 'url'
+  | 'source'
+  | 'seniority'
+  | 'summary'
+  | 'keywords'
+
 function ExtractPage() {
   const [rawText, setRawText] = useState('')
   const [fields, setFields] = useState<ExtractFieldsResponse | null>(null)
@@ -70,7 +80,7 @@ function ExtractPage() {
     }
   }
 
-  const handleFieldChange = (name: keyof ExtractFieldsResponse, value: string) => {
+  const handleFieldChange = (name: EditableExtractField, value: string) => {
     if (!fields) {
       return
     }
@@ -166,6 +176,12 @@ function ExtractPage() {
 
   const saveDescription = rawText.trim() || fields?.raw_text?.trim() || ''
   const isSaveDisabled = !fields || !saveDescription || saveLoading
+  const decision = fields?.decision
+  const hasDecision =
+    Boolean(decision?.headline?.trim()) ||
+    Boolean(decision?.detail?.trim()) ||
+    Boolean(decision?.risk_flags?.length) ||
+    Boolean(decision?.clarifying_questions?.length)
 
   return (
     <>
@@ -268,6 +284,39 @@ function ExtractPage() {
             <strong>Fit:</strong> {fitLabel(fields.fit_classification)}
             {fields.fit_rationale ? <p>{fields.fit_rationale}</p> : null}
           </div>
+          {hasDecision && decision && (
+            <div>
+              <p>
+                <strong>Decision</strong>
+              </p>
+              {decision.headline ? <p>{decision.headline}</p> : null}
+              {decision.detail ? <p>{decision.detail}</p> : null}
+              {(decision.risk_flags?.length ?? 0) > 0 && (
+                <>
+                  <p>
+                    <strong>Risk flags</strong>
+                  </p>
+                  <ul>
+                    {(decision.risk_flags ?? []).map((riskFlag, index) => (
+                      <li key={`risk-flag-${index}`}>{riskFlag}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {(decision.clarifying_questions?.length ?? 0) > 0 && (
+                <>
+                  <p>
+                    <strong>Clarifying questions</strong>
+                  </p>
+                  <ul>
+                    {(decision.clarifying_questions ?? []).map((question, index) => (
+                      <li key={`clarifying-question-${index}`}>{question}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
 
           <button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
             {saveLoading ? 'Saving…' : 'Save'}
