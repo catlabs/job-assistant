@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
@@ -15,6 +15,23 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expi
 
 def create_db_and_tables() -> None:
     Base.metadata.create_all(bind=engine)
+    _migrate_sqlite_jobs_table()
+
+
+def _migrate_sqlite_jobs_table() -> None:
+    if engine.dialect.name != "sqlite":
+        return
+
+    inspector = inspect(engine)
+    if "jobs" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("jobs")}
+    if "analysis_json" in columns:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE jobs ADD COLUMN analysis_json TEXT"))
 
 
 @contextmanager
