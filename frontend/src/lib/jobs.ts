@@ -60,6 +60,8 @@ export type JobListResponse = {
   jobs: Job[]
 }
 
+export class ApiNotFoundError extends Error {}
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 export const emptyFields: ExtractFieldsResponse = {
@@ -120,4 +122,43 @@ export const formatCreatedAt = (createdAt?: string | null) => {
   }
 
   return date.toLocaleString()
+}
+
+export const fetchJobById = async (
+  jobId: string,
+  fallbackErrorMessage = 'Could not load this job.',
+): Promise<Job> => {
+  if (!API_BASE_URL) {
+    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}`)
+    const responseBody = await response.json().catch(() => null)
+
+    if (response.status === 404) {
+      throw new ApiNotFoundError('Job not found.')
+    }
+
+    if (!response.ok) {
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    return responseBody as Job
+  } catch (jobRequestError) {
+    if (jobRequestError instanceof ApiNotFoundError) {
+      throw jobRequestError
+    }
+
+    if (jobRequestError instanceof TypeError) {
+      throw new Error('Network error while loading jobs. Please check your connection and try again.')
+    }
+
+    if (jobRequestError instanceof Error) {
+      throw jobRequestError
+    }
+
+    throw new Error(fallbackErrorMessage)
+  }
 }

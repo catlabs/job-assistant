@@ -1,5 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import ExtractPage from './pages/ExtractPage'
+import JobComparePage from './pages/JobComparePage'
+import JobDetailPage from './pages/JobDetailPage'
 import JobsPage from './pages/JobsPage'
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
         <Routes>
           <Route path="/" element={<ExtractPage />} />
           <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/jobs/compare" element={<JobComparePage />} />
+          <Route path="/jobs/:jobId" element={<JobDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
