@@ -4,7 +4,7 @@ import JobsPage from './pages/JobsPage'
 
 function App() {
   return (
-    <div>
+    <div className="app-shell">
       <header className="app-header">
         <div className="page app-nav-wrap">
           <nav className="app-nav" aria-label="Main navigation">
@@ -21,7 +21,7 @@ function App() {
         </div>
       </header>
 
-      <main className="page">
+      <main className="page app-main">
         <Routes>
           <Route path="/" element={<ExtractPage />} />
           <Route path="/jobs" element={<JobsPage />} />

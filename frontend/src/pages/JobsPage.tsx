@@ -23,6 +23,19 @@ const getFitLabel = (fitClassification?: JobAnalysis['fit_classification']) => {
   return 'Unassessed'
 }
 
+const getFitBadgeClass = (fitClassification?: JobAnalysis['fit_classification']) => {
+  if (fitClassification === 'strong_fit') {
+    return 'fit-badge fit-badge-strong'
+  }
+  if (fitClassification === 'acceptable_intermediate') {
+    return 'fit-badge fit-badge-acceptable'
+  }
+  if (fitClassification === 'misaligned') {
+    return 'fit-badge fit-badge-misaligned'
+  }
+  return 'fit-badge'
+}
+
 function JobsPage() {
   const [jobsLoading, setJobsLoading] = useState(false)
   const [jobsError, setJobsError] = useState('')
@@ -138,8 +151,10 @@ function JobsPage() {
 
   return (
     <>
-      <h1>Saved Jobs</h1>
-      <p>Browse saved jobs, open details, and compare two jobs side by side.</p>
+      <section className="page-heading">
+        <h1>Saved Jobs</h1>
+        <p className="page-subtitle">Browse saved jobs, open details, and compare two jobs side by side.</p>
+      </section>
 
       <section className="panel">
         {jobsLoading && <p>Loading saved jobs…</p>}
@@ -210,16 +225,18 @@ function JobsPage() {
                         aria-label={`Compare ${job.title || `job ${job.id}`}`}
                       />
                     </div>
-                    <div>
-                      <p>
+                    <div className="job-item-content">
+                      <p className="job-item-title">
                         <strong>{job.title || 'Untitled job'}</strong>
                         {fitClassification && (
-                          <span className="fit-badge">{getFitLabel(fitClassification)}</span>
+                          <span className={getFitBadgeClass(fitClassification)}>
+                            {getFitLabel(fitClassification)}
+                          </span>
                         )}
                       </p>
-                      <p>{job.company || 'Unknown company'}</p>
-                      <p>{job.location || 'Unknown location'}</p>
-                      <p className="muted">Source: {job.source || 'unknown'} | ID: {job.id}</p>
+                      <p className="job-meta">{job.company || 'Unknown company'}</p>
+                      <p className="job-meta">{job.location || 'Unknown location'}</p>
+                      <p className="job-meta">Source: {job.source || 'unknown'} | ID: {job.id}</p>
                     </div>
                   </li>
                 )
@@ -324,41 +341,43 @@ function JobsPage() {
               </button>
             </div>
 
-            <p>
-              <strong>Title:</strong> {selectedJob.title || 'Untitled job'}
-            </p>
-            <p>
-              <strong>Company:</strong> {selectedJob.company || 'Unknown company'}
-            </p>
-            <p>
-              <strong>Location:</strong> {selectedJob.location || 'Unknown location'}
-            </p>
-            <p>
-              <strong>URL:</strong>{' '}
-              {selectedJob.url ? (
-                <a href={selectedJob.url} target="_blank" rel="noreferrer">
-                  {selectedJob.url}
-                </a>
-              ) : (
-                <span className="muted">Not available</span>
-              )}
-            </p>
-            <p>
-              <strong>Source:</strong> {selectedJob.source || 'unknown'}
-            </p>
-            <p>
-              <strong>Created:</strong> {formatCreatedAt(selectedJob.created_at)}
-            </p>
-
-            <div>
+            <div className="detail-section">
               <p>
+                <strong>Title:</strong> {selectedJob.title || 'Untitled job'}
+              </p>
+              <p>
+                <strong>Company:</strong> {selectedJob.company || 'Unknown company'}
+              </p>
+              <p>
+                <strong>Location:</strong> {selectedJob.location || 'Unknown location'}
+              </p>
+              <p>
+                <strong>URL:</strong>{' '}
+                {selectedJob.url ? (
+                  <a href={selectedJob.url} target="_blank" rel="noreferrer">
+                    {selectedJob.url}
+                  </a>
+                ) : (
+                  <span className="muted">Not available</span>
+                )}
+              </p>
+              <p>
+                <strong>Source:</strong> {selectedJob.source || 'unknown'}
+              </p>
+              <p>
+                <strong>Created:</strong> {formatCreatedAt(selectedJob.created_at)}
+              </p>
+            </div>
+
+            <div className="detail-section">
+              <p className="section-heading">
                 <strong>Description</strong>
               </p>
               <p className="job-description">{selectedJob.description || 'No description available.'}</p>
             </div>
 
-            <div>
-              <p>
+            <div className="detail-section">
+              <p className="section-heading">
                 <strong>Analysis</strong>
               </p>
               <p>
@@ -375,7 +394,9 @@ function JobsPage() {
               </p>
               <p>
                 <strong>Fit classification:</strong>{' '}
-                {getFitLabel(selectedJob.analysis?.fit_classification)}
+                <span className={getFitBadgeClass(selectedJob.analysis?.fit_classification)}>
+                  {getFitLabel(selectedJob.analysis?.fit_classification)}
+                </span>
               </p>
               {selectedJob.analysis?.fit_rationale && (
                 <p>
@@ -386,10 +407,8 @@ function JobsPage() {
                 selectedJob.analysis?.decision?.detail?.trim() ||
                 (selectedJob.analysis?.decision?.risk_flags?.length ?? 0) > 0 ||
                 (selectedJob.analysis?.decision?.clarifying_questions?.length ?? 0) > 0) && (
-                <div>
-                  <p>
-                    <strong>Decision</strong>
-                  </p>
+                <div className="decision-block">
+                  <p className="decision-heading">Decision</p>
                   {selectedJob.analysis?.decision?.headline && (
                     <p>{selectedJob.analysis.decision.headline}</p>
                   )}
@@ -398,10 +417,10 @@ function JobsPage() {
                   )}
                   {(selectedJob.analysis?.decision?.risk_flags?.length ?? 0) > 0 && (
                     <>
-                      <p>
+                      <p className="section-heading">
                         <strong>Risk flags</strong>
                       </p>
-                      <ul>
+                      <ul className="decision-list">
                         {(selectedJob.analysis?.decision?.risk_flags ?? []).map((riskFlag, index) => (
                           <li key={`job-risk-flag-${index}`}>{riskFlag}</li>
                         ))}
@@ -410,10 +429,10 @@ function JobsPage() {
                   )}
                   {(selectedJob.analysis?.decision?.clarifying_questions?.length ?? 0) > 0 && (
                     <>
-                      <p>
+                      <p className="section-heading">
                         <strong>Clarifying questions</strong>
                       </p>
-                      <ul>
+                      <ul className="decision-list">
                         {(selectedJob.analysis?.decision?.clarifying_questions ?? []).map(
                           (question, index) => (
                             <li key={`job-clarifying-question-${index}`}>{question}</li>

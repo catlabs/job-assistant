@@ -40,6 +40,19 @@ function ExtractPage() {
     return 'Unavailable'
   }
 
+  const fitBadgeClass = (fitClassification?: ExtractFieldsResponse['fit_classification']) => {
+    if (fitClassification === 'strong_fit') {
+      return 'fit-badge fit-badge-strong'
+    }
+    if (fitClassification === 'acceptable_intermediate') {
+      return 'fit-badge fit-badge-acceptable'
+    }
+    if (fitClassification === 'misaligned') {
+      return 'fit-badge fit-badge-misaligned'
+    }
+    return 'fit-badge'
+  }
+
   const handleExtractFields = async (event: FormEvent) => {
     event.preventDefault()
     setError('')
@@ -185,8 +198,10 @@ function ExtractPage() {
 
   return (
     <>
-      <h1>Job Field Extractor</h1>
-      <p>Paste a job description, then click Extract fields.</p>
+      <section className="page-heading">
+        <h1>Job Field Extractor</h1>
+        <p className="page-subtitle">Paste a job description, then click Extract fields.</p>
+      </section>
 
       <form onSubmit={handleExtractFields} className="panel">
         <label htmlFor="rawText">Raw job description</label>
@@ -280,23 +295,26 @@ function ExtractPage() {
             />
           </label>
 
-          <div>
-            <strong>Fit:</strong> {fitLabel(fields.fit_classification)}
-            {fields.fit_rationale ? <p>{fields.fit_rationale}</p> : null}
+          <div className="detail-section">
+            <div className="fit-summary">
+              <strong>Fit:</strong>
+              <span className={fitBadgeClass(fields.fit_classification)}>
+                {fitLabel(fields.fit_classification)}
+              </span>
+            </div>
+            {fields.fit_rationale ? <p className="fit-rationale">{fields.fit_rationale}</p> : null}
           </div>
           {hasDecision && decision && (
-            <div>
-              <p>
-                <strong>Decision</strong>
-              </p>
+            <div className="decision-block">
+              <p className="decision-heading">Decision</p>
               {decision.headline ? <p>{decision.headline}</p> : null}
               {decision.detail ? <p>{decision.detail}</p> : null}
               {(decision.risk_flags?.length ?? 0) > 0 && (
                 <>
-                  <p>
+                  <p className="section-heading">
                     <strong>Risk flags</strong>
                   </p>
-                  <ul>
+                  <ul className="decision-list">
                     {(decision.risk_flags ?? []).map((riskFlag, index) => (
                       <li key={`risk-flag-${index}`}>{riskFlag}</li>
                     ))}
@@ -305,10 +323,10 @@ function ExtractPage() {
               )}
               {(decision.clarifying_questions?.length ?? 0) > 0 && (
                 <>
-                  <p>
+                  <p className="section-heading">
                     <strong>Clarifying questions</strong>
                   </p>
-                  <ul>
+                  <ul className="decision-list">
                     {(decision.clarifying_questions ?? []).map((question, index) => (
                       <li key={`clarifying-question-${index}`}>{question}</li>
                     ))}
@@ -324,7 +342,7 @@ function ExtractPage() {
 
           {saveError && <p className="error">{saveError}</p>}
           {saveSuccess && <p className="success">{saveSuccess}</p>}
-          {savedJobId && <p>Saved job id: {savedJobId}</p>}
+          {savedJobId && <p className="muted">Saved job id: {savedJobId}</p>}
         </section>
       )}
     </>
