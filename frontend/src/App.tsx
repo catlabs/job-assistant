@@ -3,6 +3,7 @@ import ExtractPage from './pages/ExtractPage'
 import JobComparePage from './pages/JobComparePage'
 import JobDetailPage from './pages/JobDetailPage'
 import JobsPage from './pages/JobsPage'
+import LlmLogsPage from './pages/LlmLogsPage'
 
 function App() {
   return (
@@ -19,6 +20,12 @@ function App() {
             >
               Saved jobs
             </NavLink>
+            <NavLink
+              to="/llm-logs"
+              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
+            >
+              LLM usage
+            </NavLink>
           </nav>
         </div>
       </header>
@@ -29,6 +36,7 @@ function App() {
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/compare" element={<JobComparePage />} />
           <Route path="/jobs/:jobId" element={<JobDetailPage />} />
+          <Route path="/llm-logs" element={<LlmLogsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

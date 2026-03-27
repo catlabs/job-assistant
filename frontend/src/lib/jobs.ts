@@ -60,6 +60,24 @@ export type JobListResponse = {
   jobs: Job[]
 }
 
+export type LlmCallLog = {
+  id: string
+  created_at: string
+  operation: string
+  model?: string | null
+  prompt_tokens?: number | null
+  completion_tokens?: number | null
+  total_tokens?: number | null
+  status: 'success' | 'error' | string
+  job_id?: string | null
+  error_message?: string | null
+}
+
+export type LlmCallLogListResponse = {
+  count: number
+  logs: LlmCallLog[]
+}
+
 export class ApiNotFoundError extends Error {}
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -157,6 +175,40 @@ export const fetchJobById = async (
 
     if (jobRequestError instanceof Error) {
       throw jobRequestError
+    }
+
+    throw new Error(fallbackErrorMessage)
+  }
+}
+
+export const fetchLlmLogs = async (
+  fallbackErrorMessage = 'Could not load LLM usage logs.',
+): Promise<LlmCallLogListResponse> => {
+  if (!API_BASE_URL) {
+    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/llm-logs/`)
+    const responseBody = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    const data = responseBody as LlmCallLogListResponse
+    return {
+      count: Number.isFinite(data.count) ? data.count : 0,
+      logs: Array.isArray(data.logs) ? data.logs : [],
+    }
+  } catch (logRequestError) {
+    if (logRequestError instanceof TypeError) {
+      throw new Error('Network error while loading logs. Please check your connection and try again.')
+    }
+
+    if (logRequestError instanceof Error) {
+      throw logRequestError
     }
 
     throw new Error(fallbackErrorMessage)
