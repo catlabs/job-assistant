@@ -10,6 +10,8 @@ from app.core.config import get_settings
 from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse, ExtractedJobFields
 from app.services.extraction_fit_cache import get_extraction_fit_cache
 from app.services.job_fit_assessment import get_job_fit_assessment_service
+from app.services.llm_call_logging import _extract_usage_tokens, log_llm_call
+from app.services.llm_operations import LlmOperation
 from app.services.text_fingerprint import fingerprint_text
 
 MAX_LLM_INPUT_CHARS = 12_000
@@ -68,22 +70,60 @@ class JobFieldExtractionService:
             )
             parsed = completion.choices[0].message.parsed
             if parsed is None:
+                log_llm_call(
+                    operation=LlmOperation.EXTRACT_FIELDS,
+                    status="error",
+                    model=completion.model or settings.openai_model,
+                    error_message="Missing parsed extraction response.",
+                    job_id=None,
+                )
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="LLM did not return structured extraction output.",
                 )
             extracted = ExtractedJobFields.model_validate(parsed)
+            prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(completion.usage)
+            log_llm_call(
+                operation=LlmOperation.EXTRACT_FIELDS,
+                status="success",
+                model=completion.model or settings.openai_model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                job_id=None,
+            )
         except APITimeoutError as exc:
+            log_llm_call(
+                operation=LlmOperation.EXTRACT_FIELDS,
+                status="error",
+                model=settings.openai_model,
+                error_message=str(exc),
+                job_id=None,
+            )
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                 detail="Timed out while extracting fields with the LLM.",
             ) from exc
         except (APIConnectionError, APIError) as exc:
+            log_llm_call(
+                operation=LlmOperation.EXTRACT_FIELDS,
+                status="error",
+                model=settings.openai_model,
+                error_message=str(exc),
+                job_id=None,
+            )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="OpenAI request failed while extracting job fields.",
             ) from exc
         except ValidationError as exc:
+            log_llm_call(
+                operation=LlmOperation.EXTRACT_FIELDS,
+                status="error",
+                model=settings.openai_model,
+                error_message=str(exc),
+                job_id=None,
+            )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="LLM returned invalid extraction JSON.",

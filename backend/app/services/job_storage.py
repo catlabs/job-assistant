@@ -16,15 +16,17 @@ class JobStorage:
     """Minimal job storage backed by SQLite via SQLAlchemy."""
 
     def create_job(self, payload: JobCreateRequest) -> Job:
+        job_id = str(uuid4())
         analysis = self._build_analysis(
             payload.title,
             payload.company,
             payload.location,
             payload.description,
             payload.extraction_ref,
+            job_id=job_id,
         )
         record = JobRecord(
-            id=str(uuid4()),
+            id=job_id,
             title=payload.title or analysis.normalized_title,
             company=payload.company or analysis.normalized_company,
             location=payload.location or analysis.normalized_location,
@@ -89,6 +91,8 @@ class JobStorage:
         location: str | None,
         description: str,
         extraction_ref: str | None,
+        *,
+        job_id: str | None = None,
     ) -> JobAnalysis:
         analysis = JobAnalysis(
             **analyze_job_posting(
@@ -120,6 +124,7 @@ class JobStorage:
             company=company,
             location=location,
             description=description,
+            job_id=job_id,
         )
         analysis.fit_classification = fit_result.fit_classification
         analysis.fit_rationale = fit_result.fit_rationale

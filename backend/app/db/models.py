@@ -1,11 +1,15 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
 
 class Base(DeclarativeBase):
     pass
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class JobRecord(Base):
@@ -26,3 +30,19 @@ class JobRecord(Base):
     description = mapped_column(Text, nullable=False)
     analysis_json = mapped_column(Text, nullable=False)
     created_at = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+
+
+class LlmCallLog(Base):
+    __tablename__ = "llm_call_logs"
+
+    id = mapped_column(String(36), primary_key=True)
+    created_at = mapped_column(DateTime(timezone=True), nullable=False, index=True, default=_utc_now)
+    operation = mapped_column(String(64), nullable=False, index=True)
+    status = mapped_column(String(16), nullable=False, index=True)
+    model = mapped_column(String(128), nullable=True)
+    prompt_tokens = mapped_column(Integer, nullable=True)
+    completion_tokens = mapped_column(Integer, nullable=True)
+    total_tokens = mapped_column(Integer, nullable=True)
+    job_id = mapped_column(String(36), nullable=True, index=True)
+    error_message = mapped_column(String(500), nullable=True)
+    extra_json = mapped_column(Text, nullable=True)

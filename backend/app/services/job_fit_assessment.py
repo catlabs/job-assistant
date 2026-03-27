@@ -9,6 +9,8 @@ from app.core.config import get_settings
 from app.services.profile_loader import load_user_profile
 from app.services.profile_assessment_context import build_profile_assessment_context
 from app.schemas.job import JobDecisionV1
+from app.services.llm_call_logging import _extract_usage_tokens, log_llm_call
+from app.services.llm_operations import LlmOperation
 
 MAX_JOB_DESCRIPTION_CHARS = 6_000
 
@@ -43,6 +45,7 @@ class JobFitAssessmentService:
         company: str | None,
         location: str | None,
         description: str,
+        job_id: str | None = None,
     ) -> JobFitAssessmentResult:
         settings = get_settings()
         api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
@@ -89,9 +92,33 @@ class JobFitAssessmentService:
             )
             parsed = completion.choices[0].message.parsed
             if parsed is None:
+                log_llm_call(
+                    operation=LlmOperation.JOB_FIT_ASSESSMENT,
+                    status="error",
+                    model=completion.model or settings.openai_model,
+                    error_message="Missing parsed fit assessment response.",
+                    job_id=job_id,
+                )
                 return JobFitAssessmentResult()
             result = CombinedAssessmentResponse.model_validate(parsed)
-        except (APITimeoutError, APIConnectionError, APIError, ValidationError):
+            prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(completion.usage)
+            log_llm_call(
+                operation=LlmOperation.JOB_FIT_ASSESSMENT,
+                status="success",
+                model=completion.model or settings.openai_model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                job_id=job_id,
+            )
+        except (APITimeoutError, APIConnectionError, APIError, ValidationError) as exc:
+            log_llm_call(
+                operation=LlmOperation.JOB_FIT_ASSESSMENT,
+                status="error",
+                model=settings.openai_model,
+                error_message=str(exc),
+                job_id=job_id,
+            )
             return JobFitAssessmentResult()
 
         return JobFitAssessmentResult(
