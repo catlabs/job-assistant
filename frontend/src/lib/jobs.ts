@@ -76,11 +76,14 @@ export type LlmCallLog = {
 
 export type LlmCallLogListResponse = {
   count: number
+  total_count?: number | null
+  offset?: number
   logs: LlmCallLog[]
 }
 
 export type FetchLlmLogsOptions = {
   limit?: number
+  offset?: number
   operation?: string
   status?: 'success' | 'error'
 }
@@ -235,6 +238,10 @@ export const fetchLlmLogs = async (
       params.set('limit', String(Math.max(1, Math.floor(options.limit))))
     }
 
+    if (typeof options.offset === 'number' && Number.isFinite(options.offset)) {
+      params.set('offset', String(Math.max(0, Math.floor(options.offset))))
+    }
+
     if (options.operation) {
       params.set('operation', options.operation)
     }
@@ -255,6 +262,8 @@ export const fetchLlmLogs = async (
     const data = responseBody as LlmCallLogListResponse
     return {
       count: Number.isFinite(data.count) ? data.count : 0,
+      total_count: Number.isFinite(data.total_count) ? data.total_count : null,
+      offset: Number.isFinite(data.offset) ? data.offset : 0,
       logs: Array.isArray(data.logs) ? data.logs : [],
     }
   } catch (logRequestError) {

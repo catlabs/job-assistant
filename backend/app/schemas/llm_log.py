@@ -19,4 +19,6 @@ class LlmCallLogItem(BaseModel):
 
 class LlmCallLogListResponse(BaseModel):
     count: int
+    total_count: int | None = None
+    offset: int = 0
     logs: list[LlmCallLogItem] = Field(default_factory=list)

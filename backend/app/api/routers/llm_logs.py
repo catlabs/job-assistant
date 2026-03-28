@@ -2,7 +2,7 @@ from datetime import timezone
 from typing import Literal
 
 from fastapi import APIRouter, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.models import LlmCallLog
 from app.db.session import get_db_session
@@ -15,17 +15,22 @@ router = APIRouter(prefix="/llm-logs", tags=["llm-logs"])
 @router.get("/", response_model=LlmCallLogListResponse)
 def list_llm_logs(
     limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     operation: str | None = Query(default=None),
     status: Literal["success", "error"] | None = Query(default=None),
 ) -> LlmCallLogListResponse:
-    stmt = select(LlmCallLog).order_by(LlmCallLog.created_at.desc()).limit(limit)
+    base_stmt = select(LlmCallLog)
 
     if operation:
-        stmt = stmt.where(LlmCallLog.operation == operation)
+        base_stmt = base_stmt.where(LlmCallLog.operation == operation)
     if status:
-        stmt = stmt.where(LlmCallLog.status == status)
+        base_stmt = base_stmt.where(LlmCallLog.status == status)
+
+    stmt = base_stmt.order_by(LlmCallLog.created_at.desc()).offset(offset).limit(limit)
+    count_stmt = select(func.count()).select_from(base_stmt.subquery())
 
     with get_db_session() as session:
+        total_count = session.scalar(count_stmt) or 0
         records = session.scalars(stmt).all()
 
     logs = [
@@ -54,4 +59,4 @@ def list_llm_logs(
         for record in records
     ]
 
-    return LlmCallLogListResponse(count=len(logs), logs=logs)
+    return LlmCallLogListResponse(count=len(logs), total_count=total_count, offset=offset, logs=logs)
