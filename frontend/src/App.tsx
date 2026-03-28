@@ -42,7 +42,7 @@ function App() {
   ]
 
   const renderHeaderAction = (action: HeaderAction) => {
-    const className = ['header-action-button', action.variant === 'secondary' ? 'secondary-button' : '', action.className ?? '']
+    const className = ['app-button', 'header-action-button', action.variant === 'secondary' ? 'secondary-button' : '', action.className ?? '']
       .filter(Boolean)
       .join(' ')
 
@@ -89,21 +89,23 @@ function App() {
           ))}
         </nav>
 
-        <button
-          type="button"
-          className="nav-link sidebar-toggle"
-          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-expanded={!isSidebarCollapsed}
-          onClick={() => setIsSidebarCollapsed((current) => !current)}
-        >
-          <span className="sidebar-item-icon" aria-hidden="true">
-            {isSidebarCollapsed ? (
-              <PanelLeftOpen className="sidebar-link-icon" size={17} strokeWidth={2} />
-            ) : (
-              <PanelLeftClose className="sidebar-link-icon" size={17} strokeWidth={2} />
-            )}
-          </span>
-        </button>
+        <div className="sidebar-toggle-row">
+          <button
+            type="button"
+            className="sidebar-toggle"
+            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!isSidebarCollapsed}
+            onClick={() => setIsSidebarCollapsed((current) => !current)}
+          >
+            <span className="sidebar-item-icon" aria-hidden="true">
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="sidebar-link-icon" size={17} strokeWidth={2} />
+              ) : (
+                <PanelLeftClose className="sidebar-link-icon" size={17} strokeWidth={2} />
+              )}
+            </span>
+          </button>
+        </div>
       </aside>
 
       <main className="app-main">

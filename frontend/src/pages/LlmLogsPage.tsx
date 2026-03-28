@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { UIEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { fetchLlmLogs, LlmCallLog } from '../lib/jobs'
 
-const DISPLAY_LOG_LIMIT = 10
-const SUMMARY_LOG_LIMIT = 60
+const LOGS_PAGE_SIZE = 20
 
 const integerFormatter = new Intl.NumberFormat()
 const compactNumberFormatter = new Intl.NumberFormat(undefined, {
@@ -70,6 +69,61 @@ const formatCost = (log: LlmCallLog) => {
   }
 
   return `$${log.token_cost_usd.toFixed(6)}`
+}
+
+const getCompactModelName = (model?: string | null) => {
+  if (!model) {
+    return '—'
+  }
+
+  const trimmed = model.trim()
+  if (!trimmed) {
+    return '—'
+  }
+
+  const withoutVersionSuffix = trimmed.replace(/-\d{4}-\d{2}-\d{2}$/, '')
+  if (withoutVersionSuffix.length <= 18) {
+    return withoutVersionSuffix
+  }
+
+  return `${withoutVersionSuffix.slice(0, 17)}…`
+}
+
+const formatOperationLabel = (operation: string) => {
+  const normalized = operation.trim().toLowerCase()
+
+  if (normalized === 'extract_fields') {
+    return 'Extract'
+  }
+
+  if (normalized === 'job_fit_assessment') {
+    return 'Fit check'
+  }
+
+  if (normalized === 'profile_explain') {
+    return 'Profile'
+  }
+
+  return operation.replace(/_/g, ' ')
+}
+
+const getTokensTitle = (log: LlmCallLog) => {
+  const details = [`Total: ${formatTokens(log)}`]
+
+  if (typeof log.prompt_tokens === 'number' && Number.isFinite(log.prompt_tokens)) {
+    details.push(`Prompt: ${integerFormatter.format(log.prompt_tokens)}`)
+  }
+
+  if (typeof log.completion_tokens === 'number' && Number.isFinite(log.completion_tokens)) {
+    details.push(`Completion: ${integerFormatter.format(log.completion_tokens)}`)
+  }
+
+  const cost = formatCost(log)
+  if (cost !== '—') {
+    details.push(`Cost: ${cost}`)
+  }
+
+  return details.join('\n')
 }
 
 const formatCompactDate = (createdAt?: string | null) => {
@@ -305,34 +359,64 @@ function TrendChart({ points, variant, formatTooltipValue }: TrendChartProps) {
 
 function LlmLogsPage() {
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const [logs, setLogs] = useState<LlmCallLog[]>([])
+  const [totalCount, setTotalCount] = useState(0)
 
-  useEffect(() => {
-    const loadLogs = async () => {
-      setLoading(true)
-      setError('')
+  const hasMoreLogs = totalCount > logs.length
 
-      try {
-        const data = await fetchLlmLogs({ limit: SUMMARY_LOG_LIMIT })
-        setLogs(data.logs)
-      } catch (logsRequestError) {
-        setLogs([])
+  const loadInitialLogs = async () => {
+    setLoading(true)
+    setError('')
 
-        if (logsRequestError instanceof Error) {
-          setError(logsRequestError.message)
-        } else {
-          setError('Could not load LLM usage logs.')
-        }
-      } finally {
-        setLoading(false)
+    try {
+      const data = await fetchLlmLogs({ limit: LOGS_PAGE_SIZE, offset: 0 })
+      setTotalCount(data.total_count ?? data.count)
+      setLogs(data.logs)
+    } catch (logsRequestError) {
+      setLogs([])
+      setTotalCount(0)
+
+      if (logsRequestError instanceof Error) {
+        setError(logsRequestError.message)
+      } else {
+        setError('Could not load LLM usage logs.')
       }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadMoreLogs = async () => {
+    if (loading || loadingMore || !hasMoreLogs) {
+      return
     }
 
-    void loadLogs()
-  }, [])
+    setLoadingMore(true)
 
-  const recentLogs = useMemo(() => logs.slice(0, DISPLAY_LOG_LIMIT), [logs])
+    try {
+      const data = await fetchLlmLogs({ limit: LOGS_PAGE_SIZE, offset: logs.length })
+      setTotalCount(data.total_count ?? data.count)
+      setLogs((current) => {
+        const existingIds = new Set(current.map((log) => log.id))
+        const appended = data.logs.filter((log) => !existingIds.has(log.id))
+        return [...current, ...appended]
+      })
+    } catch (logsRequestError) {
+      if (logsRequestError instanceof Error) {
+        setError(logsRequestError.message)
+      } else {
+        setError('Could not load LLM usage logs.')
+      }
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadInitialLogs()
+  }, [])
 
   const summary = useMemo(() => {
     const totalTokens = logs.reduce((sum, log) => sum + (getTotalTokens(log) ?? 0), 0)
@@ -347,24 +431,29 @@ function LlmLogsPage() {
   }, [logs])
 
   const pageHeaderConfig = useMemo(() => {
-    if (logs.length === 0) {
-      return {
-        title: 'LLM usage',
-        subtitle: 'Recent LLM request logs and lightweight usage totals.',
-      }
-    }
-
     return {
       title: 'LLM usage',
-      subtitle: `Summary across ${logs.length} recent calls, with the latest ${recentLogs.length} entries shown.`,
     }
-  }, [logs.length, recentLogs.length])
+  }, [])
 
   usePageHeader(pageHeaderConfig)
 
+  const handleLogsScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (loading || loadingMore || !hasMoreLogs) {
+      return
+    }
+
+    const element = event.currentTarget
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight
+
+    if (distanceFromBottom <= 160) {
+      void loadMoreLogs()
+    }
+  }
+
   return (
-    <div className="content-page">
-      <div className="content-scroll-area">
+    <div className="content-page content-page-static llm-usage-page">
+      <div className="content-static-area">
         <section className="content-block">
           {loading && (
             <section className="llm-usage-subsection">
@@ -388,10 +477,12 @@ function LlmLogsPage() {
                   <div className="llm-usage-section-heading">
                     <div>
                       <h2>Recent logs</h2>
-                      <p className="muted">Latest {recentLogs.length} entries.</p>
+                      <p className="muted">
+                        Showing {logs.length} of {totalCount || logs.length} entries.
+                      </p>
                     </div>
                   </div>
-                  <div className="llm-logs-table-wrap">
+                  <div className="llm-logs-table-wrap" onScroll={handleLogsScroll}>
                     <table className="compare-table llm-logs-table">
                       <thead>
                         <tr>
@@ -399,25 +490,34 @@ function LlmLogsPage() {
                           <th>Operation</th>
                           <th>Model</th>
                           <th>Tokens</th>
-                          <th>Cost</th>
                           <th>Status</th>
                           <th>Job</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {recentLogs.map((log) => {
+                        {logs.map((log) => {
                           const statusClassName =
                             log.status === 'error' ? 'llm-log-status llm-log-status-error' : 'llm-log-status'
+                          const operationLabel = formatOperationLabel(log.operation)
+                          const compactModelName = getCompactModelName(log.model)
 
                           return (
                             <tr key={log.id}>
                               <td className="llm-log-time">{formatCompactDate(log.created_at)}</td>
-                              <td>{log.operation}</td>
-                              <td className="llm-log-model">{log.model || '—'}</td>
-                              <td>{formatTokens(log)}</td>
-                              <td>{formatCost(log)}</td>
+                              <td className="llm-log-operation" title={log.operation}>
+                                {operationLabel}
+                              </td>
+                              <td className="llm-log-model" title={log.model || undefined}>
+                                {compactModelName}
+                              </td>
+                              <td className="llm-log-tokens" title={getTokensTitle(log)}>
+                                {formatTokens(log)}
+                              </td>
                               <td>
-                                <span className={statusClassName} title={log.error_message || undefined}>
+                                <span
+                                  className={statusClassName}
+                                  title={log.error_message || (formatCost(log) !== '—' ? `Cost: ${formatCost(log)}` : undefined)}
+                                >
                                   {log.status}
                                 </span>
                               </td>
@@ -440,6 +540,15 @@ function LlmLogsPage() {
                         })}
                       </tbody>
                     </table>
+                    <div className="llm-logs-table-footer" aria-live="polite">
+                      {loadingMore && <p className="muted">Loading more logs…</p>}
+                      {!loadingMore && hasMoreLogs && (
+                        <p className="muted">Scroll for more logs.</p>
+                      )}
+                      {!loadingMore && !hasMoreLogs && logs.length > 0 && (
+                        <p className="muted">All recent logs loaded.</p>
+                      )}
+                    </div>
                   </div>
                 </section>
               </section>

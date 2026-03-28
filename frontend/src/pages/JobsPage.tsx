@@ -123,7 +123,6 @@ function JobsPage() {
   const pageHeaderConfig = useMemo(
     () => ({
       title: 'Jobs',
-      subtitle: 'Browse saved jobs, extract new ones, open details, and compare two jobs side by side.',
       actions: headerActions,
     }),
     [headerActions],

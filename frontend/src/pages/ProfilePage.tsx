@@ -1,7 +1,16 @@
-import { Check, LoaderCircle, Save } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Check, LoaderCircle, PencilLine, Save } from 'lucide-react'
+import { type TextareaHTMLAttributes, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { ProfileUpdatePayload, fetchProfile, ProfileResponse, updateProfile } from '../lib/jobs'
+
+type EditableSection =
+  | 'summary'
+  | 'strongFitSignals'
+  | 'acceptableSignals'
+  | 'misalignedSignals'
+  | 'classificationLabels'
+  | 'interpretationRules'
+  | 'decisionDimensions'
 
 const linesToList = (value: string): string[] =>
   value
@@ -10,6 +19,65 @@ const linesToList = (value: string): string[] =>
     .filter(Boolean)
 
 const listToLines = (value: string[] | undefined): string => (Array.isArray(value) ? value.join('\n') : '')
+
+const resizeTextarea = (textarea: HTMLTextAreaElement | null) => {
+  if (!textarea) {
+    return
+  }
+
+  textarea.style.height = '0px'
+  textarea.style.height = `${textarea.scrollHeight}px`
+}
+
+type AutosizeTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  minRows?: number
+}
+
+function AutosizeTextarea({ className = '', minRows = 3, onChange, value, ...props }: AutosizeTextareaProps) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  useLayoutEffect(() => {
+    resizeTextarea(textareaRef.current)
+  }, [value])
+
+  return (
+    <textarea
+      {...props}
+      ref={textareaRef}
+      rows={minRows}
+      value={value}
+      onChange={(event) => {
+        resizeTextarea(event.currentTarget)
+        onChange?.(event)
+      }}
+      className={['profile-inline-textarea', className].filter(Boolean).join(' ')}
+    />
+  )
+}
+
+function ProfileTextDisplay({ value, emptyMessage }: { value: string; emptyMessage: string }) {
+  if (!value.trim()) {
+    return <p className="muted">{emptyMessage}</p>
+  }
+
+  return <div className="profile-display-copy">{value}</div>
+}
+
+function ProfileListDisplay({ value, emptyMessage }: { value: string; emptyMessage: string }) {
+  const items = linesToList(value)
+
+  if (items.length === 0) {
+    return <p className="muted">{emptyMessage}</p>
+  }
+
+  return (
+    <ul className="profile-list-display">
+      {items.map((item, index) => (
+        <li key={`${item}-${index}`}>{item}</li>
+      ))}
+    </ul>
+  )
+}
 
 const buildProfilePayload = (values: {
   profileSummary: string
@@ -34,6 +102,15 @@ const buildProfilePayload = (values: {
 })
 
 function ProfilePage() {
+  const [editingSections, setEditingSections] = useState({
+    summary: false,
+    strongFitSignals: false,
+    acceptableSignals: false,
+    misalignedSignals: false,
+    classificationLabels: false,
+    interpretationRules: false,
+    decisionDimensions: false,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saveLoading, setSaveLoading] = useState(false)
@@ -48,8 +125,14 @@ function ProfilePage() {
   const [interpretationRulesText, setInterpretationRulesText] = useState('')
   const [decisionDimensionsText, setDecisionDimensionsText] = useState('')
   const [classificationLabels, setClassificationLabels] = useState<string[]>([])
-  const [fitAnalysisEnabled, setFitAnalysisEnabled] = useState(false)
   const [lastSavedPayload, setLastSavedPayload] = useState<ProfileUpdatePayload | null>(null)
+
+  const toggleSectionEditing = useCallback((section: EditableSection) => {
+    setEditingSections((current) => ({
+      ...current,
+      [section]: !current[section],
+    }))
+  }, [])
 
   const applyProfile = (profile: ProfileResponse) => {
     setProfileSummary(profile.profile_summary ?? '')
@@ -59,7 +142,6 @@ function ProfilePage() {
     setInterpretationRulesText(listToLines(profile.analysis_preferences_for_job_assistant?.interpretation_rules))
     setDecisionDimensionsText(listToLines(profile.analysis_preferences_for_job_assistant?.decision_dimensions))
     setClassificationLabels(profile.analysis_preferences_for_job_assistant?.classification_labels ?? [])
-    setFitAnalysisEnabled(Boolean(profile.fit_analysis_enabled))
     setExplanation(profile.explanation?.trim() ?? '')
     setLastSavedPayload(
       buildProfilePayload({
@@ -184,7 +266,6 @@ function ProfilePage() {
   const pageHeaderConfig = useMemo(
     () => ({
       title: 'Profile',
-      subtitle: 'Edit the profile used by fit and decision analysis.',
       actions: [
         {
           key: 'save',
@@ -205,8 +286,8 @@ function ProfilePage() {
   usePageHeader(pageHeaderConfig)
 
   return (
-    <div className="profile-page">
-      <div className="content-scroll-area">
+    <div className="profile-page profile-page-static">
+      <div className="content-static-area profile-static-area">
         {(loading || error) && (
           <section className="profile-block">
             {loading && <p>Loading profile…</p>}
@@ -218,89 +299,241 @@ function ProfilePage() {
           <>
             <section className="profile-block profile-dashboard-block">
               <div className="profile-dashboard-grid">
-                <div className="profile-dashboard-column">
+                <div className="profile-dashboard-column profile-dashboard-column-scroll">
                   <section className="profile-subsection">
-                    <div className={`profile-status ${fitAnalysisEnabled ? 'profile-status-enabled' : 'profile-status-disabled'}`}>
-                      Fit analysis: {fitAnalysisEnabled ? 'Enabled' : 'Disabled'}
+                    <div className="profile-section-header profile-section-header-editable">
+                      <div className="profile-section-header-copy">
+                        <h3 className="profile-section-title">Human summary</h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="profile-edit-toggle"
+                        onClick={() => toggleSectionEditing('summary')}
+                        aria-pressed={editingSections.summary}
+                        aria-label={editingSections.summary ? 'Finish editing human summary' : 'Edit human summary'}
+                        title={editingSections.summary ? 'Finish editing human summary' : 'Edit human summary'}
+                      >
+                        {editingSections.summary ? <Check size={14} /> : <PencilLine size={14} />}
+                      </button>
                     </div>
 
-                    <label>
-                      Human summary
-                      <textarea
-                        rows={5}
-                        value={profileSummary}
-                        onChange={(event) => setProfileSummary(event.target.value)}
-                        placeholder="Short summary of your profile and priorities"
-                      />
-                    </label>
+                    {editingSections.summary ? (
+                      <label>
+                        <span className="profile-field-label">Summary</span>
+                        <AutosizeTextarea
+                          minRows={4}
+                          value={profileSummary}
+                          onChange={(event) => setProfileSummary(event.target.value)}
+                          placeholder="Short summary of your profile and priorities"
+                          autoFocus
+                        />
+                      </label>
+                    ) : (
+                      <ProfileTextDisplay value={profileSummary} emptyMessage="No profile summary added yet." />
+                    )}
                   </section>
 
                   <section className="profile-subsection">
-                    <h3>Profile explanation</h3>
-                    {explanation ? <div className="decision-block">{explanation}</div> : <p className="muted">No explanation available yet.</p>}
+                    <h3 className="profile-section-title">Profile explanation</h3>
+                    {explanation ? <div className="profile-display-copy">{explanation}</div> : <p className="muted">No explanation available yet.</p>}
                   </section>
                 </div>
 
-                <div className="profile-dashboard-column profile-dashboard-column-right">
+                <div className="profile-dashboard-column profile-dashboard-column-right profile-dashboard-column-scroll">
                   <section className="profile-subsection">
-                    <h3>Job fit model</h3>
-                    <p className="muted">One item per line. Maximum 5 entries per bucket.</p>
+                    <div className="profile-section-header profile-section-header-editable">
+                      <div className="profile-section-header-copy">
+                        <h3 className="profile-section-title">Strong fit signals</h3>
+                        <p className="muted">One item per line. Maximum 5 entries per bucket.</p>
+                      </div>
 
-                    <label>
-                      Strong fit signals
-                      <textarea
-                        rows={5}
-                        value={strongFitSignalsText}
-                        onChange={(event) => setStrongFitSignalsText(event.target.value)}
-                      />
-                    </label>
+                      <button
+                        type="button"
+                        className="profile-edit-toggle"
+                        onClick={() => toggleSectionEditing('strongFitSignals')}
+                        aria-pressed={editingSections.strongFitSignals}
+                        aria-label={editingSections.strongFitSignals ? 'Finish editing strong fit signals' : 'Edit strong fit signals'}
+                        title={editingSections.strongFitSignals ? 'Finish editing strong fit signals' : 'Edit strong fit signals'}
+                      >
+                        {editingSections.strongFitSignals ? <Check size={14} /> : <PencilLine size={14} />}
+                      </button>
+                    </div>
 
-                    <label>
-                      Acceptable but intermediate signals
-                      <textarea
-                        rows={5}
-                        value={acceptableSignalsText}
-                        onChange={(event) => setAcceptableSignalsText(event.target.value)}
-                      />
-                    </label>
-
-                    <label>
-                      Misaligned signals
-                      <textarea
-                        rows={5}
-                        value={misalignedSignalsText}
-                        onChange={(event) => setMisalignedSignalsText(event.target.value)}
-                      />
-                    </label>
+                    {editingSections.strongFitSignals ? (
+                      <label>
+                        <span className="profile-field-label">Strong fit signals</span>
+                        <AutosizeTextarea
+                          minRows={4}
+                          value={strongFitSignalsText}
+                          onChange={(event) => setStrongFitSignalsText(event.target.value)}
+                          autoFocus
+                        />
+                      </label>
+                    ) : (
+                      <ProfileListDisplay value={strongFitSignalsText} emptyMessage="No strong-fit signals defined." />
+                    )}
                   </section>
 
                   <section className="profile-subsection">
-                    <h3>Analysis preferences</h3>
-                    <label>
-                      Classification labels (fixed)
-                      <input type="text" value={labelsText} readOnly />
-                    </label>
+                    <div className="profile-section-header profile-section-header-editable">
+                      <div className="profile-section-header-copy">
+                        <h3 className="profile-section-title">Acceptable signals</h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="profile-edit-toggle"
+                        onClick={() => toggleSectionEditing('acceptableSignals')}
+                        aria-pressed={editingSections.acceptableSignals}
+                        aria-label={editingSections.acceptableSignals ? 'Finish editing acceptable signals' : 'Edit acceptable signals'}
+                        title={editingSections.acceptableSignals ? 'Finish editing acceptable signals' : 'Edit acceptable signals'}
+                      >
+                        {editingSections.acceptableSignals ? <Check size={14} /> : <PencilLine size={14} />}
+                      </button>
+                    </div>
+
+                    {editingSections.acceptableSignals ? (
+                      <label>
+                        <span className="profile-field-label">Acceptable signals</span>
+                        <AutosizeTextarea
+                          minRows={4}
+                          value={acceptableSignalsText}
+                          onChange={(event) => setAcceptableSignalsText(event.target.value)}
+                        />
+                      </label>
+                    ) : (
+                      <ProfileListDisplay value={acceptableSignalsText} emptyMessage="No intermediate signals defined." />
+                    )}
+                  </section>
+
+                  <section className="profile-subsection">
+                    <div className="profile-section-header profile-section-header-editable">
+                      <div className="profile-section-header-copy">
+                        <h3 className="profile-section-title">Misaligned signals</h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="profile-edit-toggle"
+                        onClick={() => toggleSectionEditing('misalignedSignals')}
+                        aria-pressed={editingSections.misalignedSignals}
+                        aria-label={editingSections.misalignedSignals ? 'Finish editing misaligned signals' : 'Edit misaligned signals'}
+                        title={editingSections.misalignedSignals ? 'Finish editing misaligned signals' : 'Edit misaligned signals'}
+                      >
+                        {editingSections.misalignedSignals ? <Check size={14} /> : <PencilLine size={14} />}
+                      </button>
+                    </div>
+
+                    {editingSections.misalignedSignals ? (
+                      <label>
+                        <span className="profile-field-label">Misaligned signals</span>
+                        <AutosizeTextarea
+                          minRows={4}
+                          value={misalignedSignalsText}
+                          onChange={(event) => setMisalignedSignalsText(event.target.value)}
+                        />
+                      </label>
+                    ) : (
+                      <ProfileListDisplay value={misalignedSignalsText} emptyMessage="No misaligned signals defined." />
+                    )}
+                  </section>
+
+                  <section className="profile-subsection">
+                    <div className="profile-section-header profile-section-header-editable">
+                      <div className="profile-section-header-copy">
+                        <h3 className="profile-section-title">Classification labels</h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="profile-edit-toggle"
+                        disabled
+                        aria-label="Classification labels are fixed"
+                        title="Classification labels are fixed"
+                      >
+                        <PencilLine size={14} />
+                      </button>
+                    </div>
+
+                    <div className="profile-inline-meta">
+                      <span className="profile-field-badge">Fixed</span>
+                    </div>
+                    <div className="profile-chip-list" aria-label={`Classification labels: ${labelsText || 'None'}`}>
+                      {classificationLabels.map((label) => (
+                        <span key={label} className="profile-chip">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
                     <p className="muted">Classification labels are fixed for this app and cannot be changed.</p>
+                  </section>
 
-                    <label>
-                      Interpretation rules
-                      <textarea
-                        rows={4}
-                        value={interpretationRulesText}
-                        onChange={(event) => setInterpretationRulesText(event.target.value)}
-                      />
-                    </label>
-                    <p className="muted">Maximum 3 entries.</p>
+                  <section className="profile-subsection">
+                    <div className="profile-section-header profile-section-header-editable">
+                      <div className="profile-section-header-copy">
+                        <h3 className="profile-section-title">Interpretation rules</h3>
+                        <p className="profile-field-meta">Maximum 3 entries</p>
+                      </div>
 
-                    <label>
-                      Decision dimensions
-                      <textarea
-                        rows={4}
-                        value={decisionDimensionsText}
-                        onChange={(event) => setDecisionDimensionsText(event.target.value)}
-                      />
-                    </label>
-                    <p className="muted">Maximum 3 entries.</p>
+                      <button
+                        type="button"
+                        className="profile-edit-toggle"
+                        onClick={() => toggleSectionEditing('interpretationRules')}
+                        aria-pressed={editingSections.interpretationRules}
+                        aria-label={editingSections.interpretationRules ? 'Finish editing interpretation rules' : 'Edit interpretation rules'}
+                        title={editingSections.interpretationRules ? 'Finish editing interpretation rules' : 'Edit interpretation rules'}
+                      >
+                        {editingSections.interpretationRules ? <Check size={14} /> : <PencilLine size={14} />}
+                      </button>
+                    </div>
+
+                    {editingSections.interpretationRules ? (
+                      <label>
+                        <span className="profile-field-label">Interpretation rules</span>
+                        <AutosizeTextarea
+                          minRows={3}
+                          value={interpretationRulesText}
+                          onChange={(event) => setInterpretationRulesText(event.target.value)}
+                          autoFocus
+                        />
+                      </label>
+                    ) : (
+                      <ProfileListDisplay value={interpretationRulesText} emptyMessage="No interpretation rules defined." />
+                    )}
+                  </section>
+
+                  <section className="profile-subsection">
+                    <div className="profile-section-header profile-section-header-editable">
+                      <div className="profile-section-header-copy">
+                        <h3 className="profile-section-title">Decision dimensions</h3>
+                        <p className="profile-field-meta">Maximum 3 entries</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="profile-edit-toggle"
+                        onClick={() => toggleSectionEditing('decisionDimensions')}
+                        aria-pressed={editingSections.decisionDimensions}
+                        aria-label={editingSections.decisionDimensions ? 'Finish editing decision dimensions' : 'Edit decision dimensions'}
+                        title={editingSections.decisionDimensions ? 'Finish editing decision dimensions' : 'Edit decision dimensions'}
+                      >
+                        {editingSections.decisionDimensions ? <Check size={14} /> : <PencilLine size={14} />}
+                      </button>
+                    </div>
+
+                    {editingSections.decisionDimensions ? (
+                      <label>
+                        <span className="profile-field-label">Decision dimensions</span>
+                        <AutosizeTextarea
+                          minRows={3}
+                          value={decisionDimensionsText}
+                          onChange={(event) => setDecisionDimensionsText(event.target.value)}
+                        />
+                      </label>
+                    ) : (
+                      <ProfileListDisplay value={decisionDimensionsText} emptyMessage="No decision dimensions defined." />
+                    )}
                   </section>
                 </div>
               </div>
