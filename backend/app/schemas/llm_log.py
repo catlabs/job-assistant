@@ -11,6 +11,7 @@ class LlmCallLogItem(BaseModel):
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
+    token_cost_usd: float | None = None
     status: str
     job_id: str | None = None
     error_message: str | None = None

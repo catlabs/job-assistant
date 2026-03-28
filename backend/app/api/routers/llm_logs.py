@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.db.models import LlmCallLog
 from app.db.session import get_db_session
 from app.schemas.llm_log import LlmCallLogItem, LlmCallLogListResponse
+from app.services.llm_pricing import estimate_token_cost_usd
 
 router = APIRouter(prefix="/llm-logs", tags=["llm-logs"])
 
@@ -40,6 +41,12 @@ def list_llm_logs(
             prompt_tokens=record.prompt_tokens,
             completion_tokens=record.completion_tokens,
             total_tokens=record.total_tokens,
+            token_cost_usd=estimate_token_cost_usd(
+                model=record.model,
+                prompt_tokens=record.prompt_tokens,
+                completion_tokens=record.completion_tokens,
+                total_tokens=record.total_tokens,
+            ),
             status=record.status,
             job_id=record.job_id,
             error_message=record.error_message,

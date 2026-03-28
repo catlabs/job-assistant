@@ -9,6 +9,7 @@ from app.schemas.job import Job, JobAnalysis, JobCreateRequest
 from app.services.extraction_fit_cache import get_extraction_fit_cache
 from app.services.job_analysis import analyze_job_posting
 from app.services.job_fit_assessment import get_job_fit_assessment_service
+from app.services.llm_call_logging import bind_extraction_logs_to_job
 from app.services.text_fingerprint import fingerprint_text
 
 
@@ -94,6 +95,9 @@ class JobStorage:
         *,
         job_id: str | None = None,
     ) -> JobAnalysis:
+        if extraction_ref and job_id:
+            bind_extraction_logs_to_job(extraction_ref=extraction_ref, job_id=job_id)
+
         analysis = JobAnalysis(
             **analyze_job_posting(
                 {

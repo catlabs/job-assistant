@@ -1,6 +1,9 @@
+import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
+
+from sqlalchemy import select
 
 from app.db.models import LlmCallLog
 from app.db.session import SessionLocal
@@ -27,6 +30,58 @@ def _extract_usage_tokens(usage: Any) -> tuple[int | None, int | None, int | Non
         getattr(usage, "completion_tokens", None),
         getattr(usage, "total_tokens", None),
     )
+
+
+def _normalize_job_id(job_id: str | None) -> str | None:
+    if job_id is None:
+        return None
+
+    normalized = job_id.strip()
+    return normalized or None
+
+
+def bind_extraction_logs_to_job(*, extraction_ref: str, job_id: str) -> None:
+    """Back-link extraction logs to the persisted job when saved later."""
+
+    normalized_job_id = _normalize_job_id(job_id)
+    if not extraction_ref or normalized_job_id is None:
+        return
+
+    try:
+        session = SessionLocal()
+        try:
+            candidates = session.scalars(
+                select(LlmCallLog).where(
+                    LlmCallLog.job_id.is_(None),
+                    LlmCallLog.extra_json.is_not(None),
+                )
+            ).all()
+
+            mutated = False
+            for record in candidates:
+                if not record.extra_json:
+                    continue
+
+                try:
+                    payload = json.loads(record.extra_json)
+                except Exception:
+                    continue
+
+                if not isinstance(payload, dict):
+                    continue
+
+                if payload.get("extraction_ref") != extraction_ref:
+                    continue
+
+                record.job_id = normalized_job_id
+                mutated = True
+
+            if mutated:
+                session.commit()
+        finally:
+            session.close()
+    except Exception:
+        return
 
 
 def log_llm_call(
@@ -60,7 +115,7 @@ def log_llm_call(
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                     total_tokens=total_tokens,
-                    job_id=job_id,
+                    job_id=_normalize_job_id(job_id),
                     error_message=_sanitize_error_message(error_message),
                     extra_json=extra_json,
                 )

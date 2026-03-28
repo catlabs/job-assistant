@@ -46,6 +46,7 @@ class JobFitAssessmentService:
         location: str | None,
         description: str,
         job_id: str | None = None,
+        extra_json: str | None = None,
     ) -> JobFitAssessmentResult:
         settings = get_settings()
         api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
@@ -98,6 +99,7 @@ class JobFitAssessmentService:
                     model=completion.model or settings.openai_model,
                     error_message="Missing parsed fit assessment response.",
                     job_id=job_id,
+                    extra_json=extra_json,
                 )
                 return JobFitAssessmentResult()
             result = CombinedAssessmentResponse.model_validate(parsed)
@@ -110,6 +112,7 @@ class JobFitAssessmentService:
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
                 job_id=job_id,
+                extra_json=extra_json,
             )
         except (APITimeoutError, APIConnectionError, APIError, ValidationError) as exc:
             log_llm_call(
@@ -118,6 +121,7 @@ class JobFitAssessmentService:
                 model=settings.openai_model,
                 error_message=str(exc),
                 job_id=job_id,
+                extra_json=extra_json,
             )
             return JobFitAssessmentResult()
 
