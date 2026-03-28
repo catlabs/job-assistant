@@ -1,0 +1,34 @@
+{
+  "profile_summary": "Backend-focused engineer with strong Python and API design experience, open to adjacent platform work.",
+  "job_fit_model": {
+    "strong_fit_signals": [
+      "FastAPI or backend-heavy Python responsibilities",
+      "Clear ownership of API/service architecture",
+      "Pragmatic engineering culture with code quality focus"
+    ],
+    "acceptable_but_intermediate_signals": [
+      "Partial backend role mixed with some frontend work",
+      "Modern JavaScript/TypeScript stack with backend depth still required"
+    ],
+    "misaligned_signals": [
+      "Predominantly frontend role with little backend ownership",
+      "No Python or API/system design responsibilities"
+    ]
+  },
+  "analysis_preferences_for_job_assistant": {
+    "classification_labels": [
+      "strong_fit",
+      "acceptable_intermediate",
+      "misaligned"
+    ],
+    "interpretation_rules": [
+      "Prefer concrete scope and delivery ownership over broad marketing language",
+      "Treat missing compensation and level details as uncertainty, not automatic rejection"
+    ],
+    "decision_dimensions": [
+      "scope",
+      "learning",
+      "stability"
+    ]
+  }
+}

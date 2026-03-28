@@ -1,4 +1,5 @@
 import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,25 @@ def load_user_profile(path: Path | None = None) -> dict[str, Any]:
         return {}
 
     return raw if isinstance(raw, dict) else {}
+
+
+def save_user_profile(profile: dict[str, Any], path: Path | None = None) -> None:
+    profile_path = path or DEFAULT_PROFILE_PATH
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=profile_path.parent,
+        prefix=f"{profile_path.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as temp_file:
+        json.dump(profile, temp_file, indent=2, ensure_ascii=True)
+        temp_file.write("\n")
+        temp_name = temp_file.name
+
+    Path(temp_name).replace(profile_path)
 
 
 def get_profile_summary(profile: dict[str, Any]) -> str | None:

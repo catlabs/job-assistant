@@ -7,6 +7,7 @@ Personal project: a small **FastAPI** backend to collect job postings, run **lig
 - **Health** check for monitoring and local sanity checks
 - **Jobs**: create listings, list all, fetch by id — analysis is computed once on create and stored with the row
 - **Job fit + decision analysis (optional)**: newly saved jobs may include AI-generated `fit_classification`, `fit_rationale`, and `decision` fields in `analysis_json` when `JOB_ASSISTANT_OPENAI_API_KEY` and `user_profile.json` are both configured
+- **Profile page + API (V1)**: view/edit the local profile used by fit analysis (`/profile` in UI, `/profile/*` API)
 - **Job extraction**: stateless LLM extraction from pasted posting text (`POST /jobs/extract-fields`), no persistence
 - **Ask**: stub Q&A over stored jobs (optional use of `user_profile.json` at the repo root)
 - **SQLite** persistence via **SQLAlchemy** (no auth, minimal surface area)
@@ -31,7 +32,8 @@ backend/
     core/config.py       # settings from environment
     db/                  # SQLAlchemy models + session
   requirements.txt
-user_profile.json        # optional context for /ask (not required for /jobs)
+user_profile.json        # local profile read/write target (not committed)
+user_profile.example.json # template for creating your local profile
 ```
 
 ## Prerequisites
@@ -91,6 +93,10 @@ Environment variables use the prefix `JOB_ASSISTANT_` (see `backend/app/core/con
 - **`JOB_ASSISTANT_OPENAI_TIMEOUT_SECONDS`** — OpenAI timeout (default `20`)
 
 Do **not** commit `.env` or your local `.db` if they contain personal data.
+Do **not** commit your local `user_profile.json`; use `user_profile.example.json` as a starting template.
+
+`/profile` currently maps to a single local `user_profile.json` on the backend host.
+A future multi-profile storage layer can keep the same API shape and swap the persistence implementation.
 
 ## API overview
 
@@ -103,6 +109,9 @@ Do **not** commit `.env` or your local `.db` if they contain personal data.
 | POST   | `/jobs/extract-fields` | Stateless LLM field extraction |
 | GET    | `/jobs/{id}`| Get one job    |
 | POST   | `/ask/`     | Placeholder Q&A |
+| GET    | `/profile/` | Load current profile |
+| PUT    | `/profile/` | Validate + save current profile |
+| POST   | `/profile/explain` | Optional one-shot AI profile explanation |
 
 ## Roadmap (informal)
 

@@ -1,8 +1,12 @@
 from typing import Any
 
-MAX_INTERPRETATION_RULES = 3
-MAX_SIGNALS_PER_BUCKET = 4
-VALID_FIT_LABELS = {"strong_fit", "acceptable_intermediate", "misaligned"}
+from app.services.profile_rules import (
+    MAX_DECISION_DIMENSIONS,
+    MAX_INTERPRETATION_RULES,
+    MAX_SIGNALS_PER_BUCKET,
+    sanitize_classification_labels,
+    sanitize_string_list,
+)
 
 
 def build_profile_assessment_context(profile: dict[str, Any]) -> dict[str, Any] | None:
@@ -11,45 +15,40 @@ def build_profile_assessment_context(profile: dict[str, Any]) -> dict[str, Any] 
     if not isinstance(fit_model, dict) or not isinstance(preferences, dict):
         return None
 
-    labels = preferences.get("classification_labels")
-    if not isinstance(labels, list) or not labels:
+    labels = sanitize_classification_labels(preferences.get("classification_labels"))
+    if not labels:
         return None
 
-    normalized_labels = [label for label in labels if isinstance(label, str)]
-    if set(normalized_labels) != VALID_FIT_LABELS:
-        return None
-
-    interpretation_rules = preferences.get("interpretation_rules")
-    interpretation_subset = []
-    if isinstance(interpretation_rules, list):
-        interpretation_subset = [
-            rule for rule in interpretation_rules if isinstance(rule, str) and rule.strip()
-        ][:MAX_INTERPRETATION_RULES]
-
-    strong_fit_signals = _extract_signal_subset(fit_model.get("strong_fit_signals"))
-    acceptable_signals = _extract_signal_subset(
-        fit_model.get("acceptable_but_intermediate_signals")
+    interpretation_subset = sanitize_string_list(
+        preferences.get("interpretation_rules"),
+        max_items=MAX_INTERPRETATION_RULES,
     )
-    misaligned_signals = _extract_signal_subset(fit_model.get("misaligned_signals"))
+
+    strong_fit_signals = sanitize_string_list(
+        fit_model.get("strong_fit_signals"),
+        max_items=MAX_SIGNALS_PER_BUCKET,
+    )
+    acceptable_signals = sanitize_string_list(
+        fit_model.get("acceptable_but_intermediate_signals"),
+        max_items=MAX_SIGNALS_PER_BUCKET,
+    )
+    misaligned_signals = sanitize_string_list(
+        fit_model.get("misaligned_signals"),
+        max_items=MAX_SIGNALS_PER_BUCKET,
+    )
     if not strong_fit_signals or not acceptable_signals or not misaligned_signals:
         return None
 
-    decision_dimensions = _extract_signal_subset(
+    decision_dimensions = sanitize_string_list(
         preferences.get("decision_dimensions") or fit_model.get("decision_dimensions"),
-        max_items=3,
+        max_items=MAX_DECISION_DIMENSIONS,
     )
 
     return {
-        "labels": normalized_labels,
+        "labels": labels,
         "strong_fit_signals": strong_fit_signals,
         "acceptable_signals": acceptable_signals,
         "misaligned_signals": misaligned_signals,
         "interpretation_rules": interpretation_subset,
         "decision_dimensions": decision_dimensions,
     }
-
-
-def _extract_signal_subset(value: Any, *, max_items: int = MAX_SIGNALS_PER_BUCKET) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, str) and item.strip()][:max_items]

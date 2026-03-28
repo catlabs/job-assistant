@@ -17,6 +17,7 @@ from app.api.routers.ask import router as ask_router
 from app.api.routers.health import router as health_router
 from app.api.routers.jobs import router as jobs_router
 from app.api.routers.llm_logs import router as llm_logs_router
+from app.api.routers.profile import router as profile_router
 from app.core.config import get_settings
 from app.db.session import create_db_and_tables
 
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router)
     app.include_router(ask_router)
     app.include_router(llm_logs_router)
+    app.include_router(profile_router)
 
     return app
 
