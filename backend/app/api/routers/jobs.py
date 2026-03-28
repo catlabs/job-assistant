@@ -1,7 +1,13 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse
+from app.core.config import get_settings
+from app.schemas.extract_fields import (
+    ExtractFieldsRequest,
+    ExtractFieldsResponse,
+    ExtractionModelsResponse,
+)
 from app.schemas.job import Job, JobCreateRequest, JobListResponse
+from app.services.extraction_models import get_allowed_extraction_models
 from app.services.job_field_extraction import get_job_field_extraction_service
 from app.services.job_storage import get_job_storage
 
@@ -25,6 +31,13 @@ def list_jobs() -> JobListResponse:
 def extract_job_fields(payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
     service = get_job_field_extraction_service()
     return service.extract_fields(payload)
+
+
+@router.get("/extraction-models", response_model=ExtractionModelsResponse)
+def list_extraction_models() -> ExtractionModelsResponse:
+    settings = get_settings()
+    models = get_allowed_extraction_models()
+    return ExtractionModelsResponse(default_model=settings.openai_model, models=models)
 
 
 @router.get("/{job_id}", response_model=Job)

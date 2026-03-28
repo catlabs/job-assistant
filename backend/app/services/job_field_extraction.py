@@ -1,3 +1,4 @@
+import json
 from functools import lru_cache
 from uuid import uuid4
 
@@ -57,10 +58,13 @@ class JobFieldExtractionService:
 
         llm_input = payload.raw_text[:MAX_LLM_INPUT_CHARS]
         user_prompt = f"Extract fields from this job posting:\n\n{llm_input}"
+        effective_model = payload.model or settings.openai_model
+        extraction_ref = str(uuid4())
+        log_metadata = json.dumps({"extraction_ref": extraction_ref})
 
         try:
             completion = self._client.beta.chat.completions.parse(
-                model=settings.openai_model,
+                model=effective_model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
@@ -73,9 +77,10 @@ class JobFieldExtractionService:
                 log_llm_call(
                     operation=LlmOperation.EXTRACT_FIELDS,
                     status="error",
-                    model=completion.model or settings.openai_model,
+                    model=completion.model or effective_model,
                     error_message="Missing parsed extraction response.",
                     job_id=None,
+                    extra_json=log_metadata,
                 )
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
@@ -86,19 +91,21 @@ class JobFieldExtractionService:
             log_llm_call(
                 operation=LlmOperation.EXTRACT_FIELDS,
                 status="success",
-                model=completion.model or settings.openai_model,
+                model=completion.model or effective_model,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
                 job_id=None,
+                extra_json=log_metadata,
             )
         except APITimeoutError as exc:
             log_llm_call(
                 operation=LlmOperation.EXTRACT_FIELDS,
                 status="error",
-                model=settings.openai_model,
+                model=effective_model,
                 error_message=str(exc),
                 job_id=None,
+                extra_json=log_metadata,
             )
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
@@ -108,9 +115,10 @@ class JobFieldExtractionService:
             log_llm_call(
                 operation=LlmOperation.EXTRACT_FIELDS,
                 status="error",
-                model=settings.openai_model,
+                model=effective_model,
                 error_message=str(exc),
                 job_id=None,
+                extra_json=log_metadata,
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -120,9 +128,10 @@ class JobFieldExtractionService:
             log_llm_call(
                 operation=LlmOperation.EXTRACT_FIELDS,
                 status="error",
-                model=settings.openai_model,
+                model=effective_model,
                 error_message=str(exc),
                 job_id=None,
+                extra_json=log_metadata,
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -134,8 +143,8 @@ class JobFieldExtractionService:
             company=extracted.company or None,
             location=extracted.location or None,
             description=payload.raw_text,
+            extra_json=log_metadata,
         )
-        extraction_ref = str(uuid4())
         get_extraction_fit_cache().put(
             extraction_ref=extraction_ref,
             text_fingerprint=fingerprint_text(payload.raw_text),

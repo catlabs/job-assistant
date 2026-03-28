@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.job import JobDecisionV1
+from app.services.extraction_models import get_allowed_extraction_models
 
 SENIORITY_LEVELS: tuple[str, ...] = ("Intern", "Junior", "Mid", "Senior", "Lead", "Staff", "")
 MIN_RAW_TEXT_LENGTH = 40
@@ -20,6 +21,10 @@ class ExtractFieldsRequest(BaseModel):
         max_length=MAX_RAW_TEXT_LENGTH,
         description="Raw pasted job posting text.",
     )
+    model: str | None = Field(
+        default=None,
+        description="Optional extraction model override from a curated backend allowlist.",
+    )
 
     @field_validator("raw_text")
     @classmethod
@@ -28,6 +33,23 @@ class ExtractFieldsRequest(BaseModel):
         if len(cleaned) < MIN_RAW_TEXT_LENGTH:
             raise ValueError(f"raw_text must contain at least {MIN_RAW_TEXT_LENGTH} characters.")
         return value
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        allowed_models = get_allowed_extraction_models()
+        if value not in allowed_models:
+            allowed_values = ", ".join(allowed_models)
+            raise ValueError(f"model must be one of: {allowed_values}")
+        return value
+
+
+class ExtractionModelsResponse(BaseModel):
+    default_model: str
+    models: list[str] = Field(default_factory=list)
 
 
 class ExtractedJobFields(BaseModel):
