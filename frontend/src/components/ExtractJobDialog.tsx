@@ -17,7 +17,12 @@ type EditableExtractField =
   | 'summary'
   | 'keywords'
 
-function ExtractPage() {
+type ExtractJobDialogProps = {
+  open: boolean
+  onClose: () => void
+}
+
+function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
   const [rawText, setRawText] = useState('')
   const [fields, setFields] = useState<ExtractFieldsResponse | null>(null)
   const [models, setModels] = useState<string[]>([])
@@ -82,6 +87,23 @@ function ExtractPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose, open])
+
   const fitLabel = (fitClassification?: ExtractFieldsResponse['fit_classification']) => {
     if (fitClassification === 'strong_fit') {
       return 'Strong fit'
@@ -145,7 +167,7 @@ function ExtractPage() {
 
       const data: ExtractFieldsResponse = await response.json()
       setFields({ ...emptyFields, ...data })
-    } catch (_error) {
+    } catch (_requestError) {
       setFields(null)
       setError('Could not extract fields. Please try again with more complete text.')
     } finally {
@@ -247,6 +269,10 @@ function ExtractPage() {
     }
   }
 
+  if (!open) {
+    return null
+  }
+
   const saveDescription = rawText.trim() || fields?.raw_text?.trim() || ''
   const isSaveDisabled = !fields || !saveDescription || saveLoading
   const decision = fields?.decision
@@ -257,14 +283,25 @@ function ExtractPage() {
     Boolean(decision?.clarifying_questions?.length)
 
   return (
-    <div className="content-page">
-      <section className="page-heading content-block">
-        <h1>Job Field Extractor</h1>
-        <p className="page-subtitle">Paste a job description, then click Extract fields.</p>
-      </section>
+    <div className="dialog-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="dialog-panel"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="extract-job-dialog-title"
+      >
+        <div className="dialog-header">
+          <div>
+            <h2 id="extract-job-dialog-title">Extract job</h2>
+            <p className="page-subtitle">Paste a job description, then extract fields and save it to Jobs.</p>
+          </div>
+          <button type="button" className="secondary-button header-action-button" onClick={onClose}>
+            Close
+          </button>
+        </div>
 
-      <div className="content-scroll-area">
-        <section className="content-block">
+        <div className="dialog-body">
           <form onSubmit={handleExtractFields} className="panel">
             <label htmlFor="rawText">Raw job description</label>
             <textarea
@@ -296,151 +333,144 @@ function ExtractPage() {
               {loading ? 'Extracting…' : 'Extract fields'}
             </button>
           </form>
-        </section>
 
-        {error && (
-          <section className="content-block">
-            <p className="error">{error}</p>
-          </section>
-        )}
+          {error && <p className="error">{error}</p>}
 
-        {fields && (
-          <section className="content-block">
+          {fields && (
             <section className="panel">
               <h2>Extracted fields (editable)</h2>
 
-            <div className="detail-section">
-              <label>
-                Title
-                <input
-                  type="text"
-                  value={fields.title}
-                  onChange={(event) => handleFieldChange('title', event.target.value)}
-                />
-              </label>
+              <div className="detail-section">
+                <label>
+                  Title
+                  <input
+                    type="text"
+                    value={fields.title}
+                    onChange={(event) => handleFieldChange('title', event.target.value)}
+                  />
+                </label>
 
-              <label>
-                Company
-                <input
-                  type="text"
-                  value={fields.company}
-                  onChange={(event) => handleFieldChange('company', event.target.value)}
-                />
-              </label>
+                <label>
+                  Company
+                  <input
+                    type="text"
+                    value={fields.company}
+                    onChange={(event) => handleFieldChange('company', event.target.value)}
+                  />
+                </label>
 
-              <label>
-                Location
-                <input
-                  type="text"
-                  value={fields.location}
-                  onChange={(event) => handleFieldChange('location', event.target.value)}
-                />
-              </label>
+                <label>
+                  Location
+                  <input
+                    type="text"
+                    value={fields.location}
+                    onChange={(event) => handleFieldChange('location', event.target.value)}
+                  />
+                </label>
 
-              <label>
-                URL
-                <input
-                  type="text"
-                  value={fields.url}
-                  onChange={(event) => handleFieldChange('url', event.target.value)}
-                />
-              </label>
+                <label>
+                  URL
+                  <input
+                    type="text"
+                    value={fields.url}
+                    onChange={(event) => handleFieldChange('url', event.target.value)}
+                  />
+                </label>
 
-              <label>
-                Source
-                <input
-                  type="text"
-                  value={fields.source}
-                  onChange={(event) => handleFieldChange('source', event.target.value)}
-                />
-              </label>
-            </div>
-
-            <div className="detail-section">
-              <label>
-                Seniority
-                <input
-                  type="text"
-                  value={fields.seniority}
-                  onChange={(event) => handleFieldChange('seniority', event.target.value)}
-                />
-              </label>
-
-              <label>
-                Summary
-                <textarea
-                  value={fields.summary}
-                  onChange={(event) => handleFieldChange('summary', event.target.value)}
-                  rows={5}
-                />
-              </label>
-
-              <label>
-                Keywords (comma-separated)
-                <input
-                  type="text"
-                  value={fields.keywords.join(', ')}
-                  onChange={(event) => handleFieldChange('keywords', event.target.value)}
-                />
-              </label>
-            </div>
-
-            <div className="detail-section">
-              <div className="fit-summary">
-                <strong>Fit:</strong>
-                <span className={fitBadgeClass(fields.fit_classification)}>
-                  {fitLabel(fields.fit_classification)}
-                </span>
+                <label>
+                  Source
+                  <input
+                    type="text"
+                    value={fields.source}
+                    onChange={(event) => handleFieldChange('source', event.target.value)}
+                  />
+                </label>
               </div>
-              {fields.fit_rationale ? <p className="fit-rationale">{fields.fit_rationale}</p> : null}
-            </div>
-            {hasDecision && decision && (
-              <div className="decision-block">
-                <p className="decision-heading">Decision</p>
-                {decision.headline ? <p>{decision.headline}</p> : null}
-                {decision.detail ? <p>{decision.detail}</p> : null}
-                {(decision.risk_flags?.length ?? 0) > 0 && (
-                  <>
-                    <p className="section-heading">
-                      <strong>Risk flags</strong>
-                    </p>
-                    <ul className="decision-list">
-                      {(decision.risk_flags ?? []).map((riskFlag, index) => (
-                        <li key={`risk-flag-${index}`}>{riskFlag}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                {(decision.clarifying_questions?.length ?? 0) > 0 && (
-                  <>
-                    <p className="section-heading">
-                      <strong>Clarifying questions</strong>
-                    </p>
-                    <ul className="decision-list">
-                      {(decision.clarifying_questions ?? []).map((question, index) => (
-                        <li key={`clarifying-question-${index}`}>{question}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
+
+              <div className="detail-section">
+                <label>
+                  Seniority
+                  <input
+                    type="text"
+                    value={fields.seniority}
+                    onChange={(event) => handleFieldChange('seniority', event.target.value)}
+                  />
+                </label>
+
+                <label>
+                  Summary
+                  <textarea
+                    value={fields.summary}
+                    onChange={(event) => handleFieldChange('summary', event.target.value)}
+                    rows={5}
+                  />
+                </label>
+
+                <label>
+                  Keywords (comma-separated)
+                  <input
+                    type="text"
+                    value={fields.keywords.join(', ')}
+                    onChange={(event) => handleFieldChange('keywords', event.target.value)}
+                  />
+                </label>
               </div>
-            )}
 
-            <div className="detail-section">
-              <button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
-                {saveLoading ? 'Saving…' : 'Save'}
-              </button>
+              <div className="detail-section">
+                <div className="fit-summary">
+                  <strong>Fit:</strong>
+                  <span className={fitBadgeClass(fields.fit_classification)}>{fitLabel(fields.fit_classification)}</span>
+                </div>
+                {fields.fit_rationale ? <p className="fit-rationale">{fields.fit_rationale}</p> : null}
+              </div>
 
-              {saveError && <p className="error">{saveError}</p>}
-              {saveSuccess && <p className="success">{saveSuccess}</p>}
-              {savedJobId && <p className="muted">Saved job id: {savedJobId}</p>}
-            </div>
+              {hasDecision && decision && (
+                <div className="decision-block">
+                  <p className="decision-heading">Decision</p>
+                  {decision.headline ? <p>{decision.headline}</p> : null}
+                  {decision.detail ? <p>{decision.detail}</p> : null}
+                  {(decision.risk_flags?.length ?? 0) > 0 && (
+                    <>
+                      <p className="section-heading">
+                        <strong>Risk flags</strong>
+                      </p>
+                      <ul className="decision-list">
+                        {(decision.risk_flags ?? []).map((riskFlag, index) => (
+                          <li key={`risk-flag-${index}`}>{riskFlag}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {(decision.clarifying_questions?.length ?? 0) > 0 && (
+                    <>
+                      <p className="section-heading">
+                        <strong>Clarifying questions</strong>
+                      </p>
+                      <ul className="decision-list">
+                        {(decision.clarifying_questions ?? []).map((question, index) => (
+                          <li key={`clarifying-question-${index}`}>{question}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="detail-section">
+                <button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
+                  {saveLoading ? 'Saving…' : 'Save'}
+                </button>
+
+                {saveError && <p className="error">{saveError}</p>}
+                {saveSuccess && <p className="success">{saveSuccess}</p>}
+                {savedJobId && <p className="muted">Saved job id: {savedJobId}</p>}
+              </div>
             </section>
-          </section>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-export default ExtractPage
+export default ExtractJobDialog

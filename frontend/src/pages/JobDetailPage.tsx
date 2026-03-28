@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { usePageHeader } from '../components/PageHeaderContext'
 import JobDetailView from '../components/JobDetailView'
 import { ApiNotFoundError, fetchJobById, Job } from '../lib/jobs'
 
@@ -44,25 +45,36 @@ function JobDetailPage() {
     void loadJob()
   }, [jobId])
 
-  return (
-    <>
-      <section className="page-heading">
-        <h1>Job Details</h1>
-      </section>
+  const pageHeaderConfig = useMemo(
+    () => ({
+      title: 'Job details',
+      actions: [
+        {
+          key: 'back',
+          label: 'Back to Jobs',
+          variant: 'secondary' as const,
+          to: '/jobs',
+        },
+      ],
+    }),
+    [],
+  )
 
-      <section className="panel job-detail-panel">
-        <div className="job-detail-header">
-          <h3>Job details</h3>
-          <Link to="/jobs" className="secondary-button">
-            Back to jobs
-          </Link>
-        </div>
-        {loading && <p>Loading job details…</p>}
-        {!loading && error && <p className="error">{error}</p>}
-        {!loading && !error && isNotFound && <p className="muted">This job could not be found.</p>}
-        {!loading && !error && !isNotFound && job && <JobDetailView job={job} />}
-      </section>
-    </>
+  usePageHeader(pageHeaderConfig)
+
+  return (
+    <div className="content-page">
+      <div className="content-scroll-area">
+        <section className="content-block">
+          <section className="panel job-detail-panel">
+            {loading && <p>Loading job details…</p>}
+            {!loading && error && <p className="error">{error}</p>}
+            {!loading && !error && isNotFound && <p className="muted">This job could not be found.</p>}
+            {!loading && !error && !isNotFound && job && <JobDetailView job={job} />}
+          </section>
+        </section>
+      </div>
+    </div>
   )
 }
 

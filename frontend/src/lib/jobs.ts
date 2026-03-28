@@ -68,6 +68,7 @@ export type LlmCallLog = {
   prompt_tokens?: number | null
   completion_tokens?: number | null
   total_tokens?: number | null
+  token_cost_usd?: number | null
   status: 'success' | 'error' | string
   job_id?: string | null
   error_message?: string | null
@@ -76,6 +77,44 @@ export type LlmCallLog = {
 export type LlmCallLogListResponse = {
   count: number
   logs: LlmCallLog[]
+}
+
+export type FetchLlmLogsOptions = {
+  limit?: number
+  operation?: string
+  status?: 'success' | 'error'
+}
+
+export type ProfileJobFitModel = {
+  strong_fit_signals: string[]
+  acceptable_but_intermediate_signals: string[]
+  misaligned_signals: string[]
+}
+
+export type ProfileAnalysisPreferences = {
+  classification_labels: string[]
+  interpretation_rules: string[]
+  decision_dimensions: string[]
+}
+
+export type ProfileResponse = {
+  profile_summary?: string | null
+  job_fit_model: ProfileJobFitModel
+  analysis_preferences_for_job_assistant: ProfileAnalysisPreferences
+  fit_analysis_enabled: boolean
+  explanation?: string | null
+}
+
+export type ProfileUpdatePayload = {
+  profile_summary?: string | null
+  job_fit_model: ProfileJobFitModel
+  analysis_preferences_for_job_assistant: ProfileAnalysisPreferences
+}
+
+export type ProfileExplainResponse = {
+  enabled: boolean
+  message: string
+  explanation?: string | null
 }
 
 export class ApiNotFoundError extends Error {}
@@ -182,6 +221,7 @@ export const fetchJobById = async (
 }
 
 export const fetchLlmLogs = async (
+  options: FetchLlmLogsOptions = {},
   fallbackErrorMessage = 'Could not load LLM usage logs.',
 ): Promise<LlmCallLogListResponse> => {
   if (!API_BASE_URL) {
@@ -189,7 +229,22 @@ export const fetchLlmLogs = async (
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/llm-logs/`)
+    const params = new URLSearchParams()
+
+    if (typeof options.limit === 'number' && Number.isFinite(options.limit)) {
+      params.set('limit', String(Math.max(1, Math.floor(options.limit))))
+    }
+
+    if (options.operation) {
+      params.set('operation', options.operation)
+    }
+
+    if (options.status) {
+      params.set('status', options.status)
+    }
+
+    const query = params.toString()
+    const response = await fetch(`${API_BASE_URL}/llm-logs/${query ? `?${query}` : ''}`)
     const responseBody = await response.json().catch(() => null)
 
     if (!response.ok) {
@@ -209,6 +264,105 @@ export const fetchLlmLogs = async (
 
     if (logRequestError instanceof Error) {
       throw logRequestError
+    }
+
+    throw new Error(fallbackErrorMessage)
+  }
+}
+
+export const fetchProfile = async (
+  fallbackErrorMessage = 'Could not load profile.',
+): Promise<ProfileResponse> => {
+  if (!API_BASE_URL) {
+    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/`)
+    const responseBody = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    return responseBody as ProfileResponse
+  } catch (profileRequestError) {
+    if (profileRequestError instanceof TypeError) {
+      throw new Error('Network error while loading profile. Please check your connection and try again.')
+    }
+
+    if (profileRequestError instanceof Error) {
+      throw profileRequestError
+    }
+
+    throw new Error(fallbackErrorMessage)
+  }
+}
+
+export const updateProfile = async (
+  payload: ProfileUpdatePayload,
+  fallbackErrorMessage = 'Could not save profile.',
+): Promise<ProfileResponse> => {
+  if (!API_BASE_URL) {
+    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const responseBody = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    return responseBody as ProfileResponse
+  } catch (profileSaveError) {
+    if (profileSaveError instanceof TypeError) {
+      throw new Error('Network error while saving profile. Please check your connection and try again.')
+    }
+
+    if (profileSaveError instanceof Error) {
+      throw profileSaveError
+    }
+
+    throw new Error(fallbackErrorMessage)
+  }
+}
+
+export const explainProfile = async (
+  fallbackErrorMessage = 'Could not generate profile explanation.',
+): Promise<ProfileExplainResponse> => {
+  if (!API_BASE_URL) {
+    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/explain`, {
+      method: 'POST',
+    })
+    const responseBody = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    return responseBody as ProfileExplainResponse
+  } catch (profileExplainError) {
+    if (profileExplainError instanceof TypeError) {
+      throw new Error('Network error while requesting explanation. Please check your connection and try again.')
+    }
+
+    if (profileExplainError instanceof Error) {
+      throw profileExplainError
     }
 
     throw new Error(fallbackErrorMessage)

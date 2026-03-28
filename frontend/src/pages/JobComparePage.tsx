@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
+import { usePageHeader } from '../components/PageHeaderContext'
 import JobCompareTable from '../components/JobCompareTable'
 import { ApiNotFoundError, fetchJobById, Job } from '../lib/jobs'
 
@@ -59,40 +60,49 @@ function JobComparePage() {
     void loadJobs()
   }, [compareIds])
 
+  const pageHeaderConfig = useMemo(
+    () => ({
+      title: 'Compare jobs',
+      actions: [
+        {
+          key: 'back',
+          label: 'Back to Jobs',
+          variant: 'secondary' as const,
+          to: '/jobs',
+        },
+      ],
+    }),
+    [],
+  )
+
+  usePageHeader(pageHeaderConfig)
+
   if (!compareIds) {
     return (
-      <>
-        <section className="page-heading">
-          <h1>Compare Jobs</h1>
-        </section>
-        <section className="panel">
-          <p className="muted">Choose two different jobs to compare from the saved jobs list.</p>
-          <Link to="/jobs" className="secondary-button">
-            Back to jobs
-          </Link>
-        </section>
-      </>
+      <div className="content-page">
+        <div className="content-scroll-area">
+          <section className="content-block">
+            <section className="panel">
+              <p className="muted">Choose two different jobs to compare from the saved jobs list.</p>
+            </section>
+          </section>
+        </div>
+      </div>
     )
   }
 
   return (
-    <>
-      <section className="page-heading">
-        <h1>Compare Jobs</h1>
-      </section>
-
-      <section className="panel">
-        <div className="job-detail-header">
-          <h3>Job comparison</h3>
-          <Link to="/jobs" className="secondary-button">
-            Back to jobs
-          </Link>
-        </div>
-        {loading && <p>Loading selected jobs…</p>}
-        {!loading && error && <p className="error">{error}</p>}
-        {!loading && !error && jobs && <JobCompareTable firstJob={jobs[0]} secondJob={jobs[1]} />}
-      </section>
-    </>
+    <div className="content-page">
+      <div className="content-scroll-area">
+        <section className="content-block">
+          <section className="panel">
+            {loading && <p>Loading selected jobs…</p>}
+            {!loading && error && <p className="error">{error}</p>}
+            {!loading && !error && jobs && <JobCompareTable firstJob={jobs[0]} secondJob={jobs[1]} />}
+          </section>
+        </section>
+      </div>
+    </div>
   )
 }
 

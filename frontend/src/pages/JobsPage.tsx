@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ExtractJobDialog from '../components/ExtractJobDialog'
+import { usePageHeader } from '../components/PageHeaderContext'
 import { API_BASE_URL, getApiErrorMessage, Job, JobListResponse } from '../lib/jobs'
 import { FitFilter, getFitBadgeClass, getFitLabel } from '../lib/jobDisplay'
 
@@ -11,6 +13,7 @@ function JobsPage() {
   const [fitFilter, setFitFilter] = useState<FitFilter>('all')
   const [compareSelectedIds, setCompareSelectedIds] = useState<string[]>([])
   const [compareHint, setCompareHint] = useState('')
+  const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false)
 
   const fetchJobs = async () => {
     setJobsError('')
@@ -89,7 +92,7 @@ function JobsPage() {
 
   const canCompare = compareSelectedIds.length === 2
 
-  const handleCompareNavigation = () => {
+  const handleCompareNavigation = useCallback(() => {
     if (!canCompare) {
       return
     }
@@ -97,103 +100,125 @@ function JobsPage() {
     const [a, b] = compareSelectedIds
     const params = new URLSearchParams({ a, b })
     navigate(`/jobs/compare?${params.toString()}`)
-  }
+  }, [canCompare, compareSelectedIds, navigate])
+
+  const headerActions = useMemo(
+    () => [
+      {
+        key: 'extract',
+        label: 'Extract',
+        variant: 'secondary' as const,
+        onClick: () => setIsExtractDialogOpen(true),
+      },
+      {
+        key: 'compare',
+        label: 'Compare selected',
+        onClick: handleCompareNavigation,
+        disabled: !canCompare,
+      },
+    ],
+    [canCompare, handleCompareNavigation],
+  )
+
+  const pageHeaderConfig = useMemo(
+    () => ({
+      title: 'Jobs',
+      subtitle: 'Browse saved jobs, extract new ones, open details, and compare two jobs side by side.',
+      actions: headerActions,
+    }),
+    [headerActions],
+  )
+
+  usePageHeader(pageHeaderConfig)
 
   return (
-    <>
-      <section className="page-heading">
-        <h1>Saved Jobs</h1>
-        <p className="page-subtitle">Browse saved jobs, open details, and compare two jobs side by side.</p>
-      </section>
-
-      <section className="panel">
-        {jobsLoading && <p>Loading saved jobs…</p>}
-        {jobsError && <p className="error">{jobsError}</p>}
-        {!jobsLoading && !jobsError && jobs.length === 0 && <p className="muted">No saved jobs yet.</p>}
-        {!jobsLoading && !jobsError && jobs.length > 0 && (
-          <>
-            <div className="jobs-list-header">
-              <label className="fit-filter-control">
-                Fit filter
-                <select
-                  value={fitFilter}
-                  onChange={(event) => {
-                    setFitFilter(event.target.value as FitFilter)
-                    setCompareSelectedIds([])
-                    setCompareHint('')
-                  }}
-                >
-                  <option value="all">All</option>
-                  <option value="strong_fit">Strong fit</option>
-                  <option value="acceptable_intermediate">Acceptable / Intermediate</option>
-                  <option value="misaligned">Misaligned</option>
-                  <option value="unassessed">Unassessed</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={!canCompare}
-                onClick={handleCompareNavigation}
-              >
-                Compare selected
-              </button>
-            </div>
-            {compareHint && <p className="muted compare-hint">{compareHint}</p>}
-            {filteredJobs.length === 0 && <p className="muted">No jobs match this fit filter.</p>}
-            <ul className="jobs-list">
-              {filteredJobs.map((job) => {
-                const jobId = String(job.id)
-                const isCompared = compareSelectedIds.includes(jobId)
-                const fitClassification = job.analysis?.fit_classification
-                return (
-                  <li
-                    key={job.id}
-                    className="job-item"
-                    onClick={() => navigate(`/jobs/${jobId}`)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        navigate(`/jobs/${jobId}`)
-                      }
-                    }}
-                    role="link"
-                    tabIndex={0}
-                  >
-                    <div className="job-item-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={isCompared}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => {
-                          event.stopPropagation()
-                          handleToggleCompareSelection(jobId)
+    <div className="content-page">
+      <div className="content-scroll-area">
+        <section className="content-block">
+          <section className="panel">
+            {jobsLoading && <p>Loading saved jobs…</p>}
+            {jobsError && <p className="error">{jobsError}</p>}
+            {!jobsLoading && !jobsError && jobs.length === 0 && <p className="muted">No saved jobs yet.</p>}
+            {!jobsLoading && !jobsError && jobs.length > 0 && (
+              <>
+                <div className="jobs-list-header">
+                  <label className="fit-filter-control">
+                    Fit filter
+                    <select
+                      value={fitFilter}
+                      onChange={(event) => {
+                        setFitFilter(event.target.value as FitFilter)
+                        setCompareSelectedIds([])
+                        setCompareHint('')
+                      }}
+                    >
+                      <option value="all">All</option>
+                      <option value="strong_fit">Strong fit</option>
+                      <option value="acceptable_intermediate">Acceptable / Intermediate</option>
+                      <option value="misaligned">Misaligned</option>
+                      <option value="unassessed">Unassessed</option>
+                    </select>
+                  </label>
+                </div>
+                {compareHint && <p className="muted compare-hint">{compareHint}</p>}
+                {filteredJobs.length === 0 && <p className="muted">No jobs match this fit filter.</p>}
+                <ul className="jobs-list">
+                  {filteredJobs.map((job) => {
+                    const jobId = String(job.id)
+                    const isCompared = compareSelectedIds.includes(jobId)
+                    const fitClassification = job.analysis?.fit_classification
+                    return (
+                      <li
+                        key={job.id}
+                        className="job-item"
+                        onClick={() => navigate(`/jobs/${jobId}`)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            navigate(`/jobs/${jobId}`)
+                          }
                         }}
-                        onKeyDown={(event) => event.stopPropagation()}
-                        aria-label={`Compare ${job.title || `job ${job.id}`}`}
-                      />
-                    </div>
-                    <div className="job-item-content">
-                      <p className="job-item-title">
-                        <strong>{job.title || 'Untitled job'}</strong>
-                        {fitClassification && (
-                          <span className={getFitBadgeClass(fitClassification)}>
-                            {getFitLabel(fitClassification)}
-                          </span>
-                        )}
-                      </p>
-                      <p className="job-meta">{job.company || 'Unknown company'}</p>
-                      <p className="job-meta">{job.location || 'Unknown location'}</p>
-                      <p className="job-meta">Source: {job.source || 'unknown'} | ID: {job.id}</p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </>
-        )}
-      </section>
-    </>
+                        role="link"
+                        tabIndex={0}
+                      >
+                        <div className="job-item-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={isCompared}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              event.stopPropagation()
+                              handleToggleCompareSelection(jobId)
+                            }}
+                            onKeyDown={(event) => event.stopPropagation()}
+                            aria-label={`Compare ${job.title || `job ${job.id}`}`}
+                          />
+                        </div>
+                        <div className="job-item-content">
+                          <p className="job-item-title">
+                            <strong>{job.title || 'Untitled job'}</strong>
+                            {fitClassification && (
+                              <span className={getFitBadgeClass(fitClassification)}>
+                                {getFitLabel(fitClassification)}
+                              </span>
+                            )}
+                          </p>
+                          <p className="job-meta">{job.company || 'Unknown company'}</p>
+                          <p className="job-meta">{job.location || 'Unknown location'}</p>
+                          <p className="job-meta">Source: {job.source || 'unknown'} | ID: {job.id}</p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            )}
+          </section>
+        </section>
+      </div>
+
+      <ExtractJobDialog open={isExtractDialogOpen} onClose={() => setIsExtractDialogOpen(false)} />
+    </div>
   )
 }
 
