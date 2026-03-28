@@ -5,12 +5,16 @@ import { fetchLlmLogs, LlmCallLog } from '../lib/jobs'
 
 const DISPLAY_LOG_LIMIT = 10
 const SUMMARY_LOG_LIMIT = 60
-const TREND_BUCKET_COUNT = 8
 
 const integerFormatter = new Intl.NumberFormat()
 const compactNumberFormatter = new Intl.NumberFormat(undefined, {
   notation: 'compact',
   maximumFractionDigits: 1,
+})
+const trendDayFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
 })
 const logDateFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -56,6 +60,10 @@ const formatMetricValue = (value: number) => {
   return compactNumberFormatter.format(value)
 }
 
+const formatTooltipTokens = (value: number) => `${integerFormatter.format(value)} tokens`
+
+const formatTooltipRequests = (value: number) => `${integerFormatter.format(value)} requests`
+
 const formatCost = (log: LlmCallLog) => {
   if (typeof log.token_cost_usd !== 'number' || !Number.isFinite(log.token_cost_usd)) {
     return '—'
@@ -77,89 +85,174 @@ const formatCompactDate = (createdAt?: string | null) => {
   return logDateFormatter.format(date)
 }
 
-const buildTrendValues = (logs: LlmCallLog[], getValue: (log: LlmCallLog) => number) => {
-  const buckets = Array.from({ length: TREND_BUCKET_COUNT }, () => 0)
+type DailyTrendPoint = {
+  dayKey: string
+  label: string
+  value: number
+}
 
+const toLocalDayKey = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const buildDailyTrendPoints = (logs: LlmCallLog[], getValue: (log: LlmCallLog) => number): DailyTrendPoint[] => {
   if (logs.length === 0) {
-    return buckets
+    return []
   }
 
-  const datedLogs = logs
-    .map((log) => {
-      const timestamp = new Date(log.created_at).getTime()
-      return {
-        log,
-        timestamp: Number.isFinite(timestamp) ? timestamp : null,
-      }
-    })
-    .sort((left, right) => {
-      const leftTimestamp = left.timestamp ?? 0
-      const rightTimestamp = right.timestamp ?? 0
-      return leftTimestamp - rightTimestamp
-    })
+  const totalsByDay = new Map<string, { date: Date; value: number }>()
 
-  const validTimestamps = datedLogs.map((entry) => entry.timestamp).filter((value): value is number => value !== null)
-
-  if (validTimestamps.length >= 2) {
-    const firstTimestamp = validTimestamps[0]
-    const lastTimestamp = validTimestamps[validTimestamps.length - 1]
-
-    if (lastTimestamp === firstTimestamp) {
-      datedLogs.forEach(({ log }, index) => {
-        const bucketIndex = Math.min(
-          TREND_BUCKET_COUNT - 1,
-          Math.floor((index / Math.max(datedLogs.length, 1)) * TREND_BUCKET_COUNT),
-        )
-        buckets[bucketIndex] += getValue(log)
-      })
-
-      return buckets
+  logs.forEach((log) => {
+    const timestamp = new Date(log.created_at)
+    if (Number.isNaN(timestamp.getTime())) {
+      return
     }
 
-    const range = lastTimestamp - firstTimestamp
+    const day = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate())
+    const dayKey = toLocalDayKey(day)
+    const current = totalsByDay.get(dayKey)
 
-    datedLogs.forEach(({ log, timestamp }) => {
-      const resolvedTimestamp = timestamp ?? firstTimestamp
-      const progress = Math.min(Math.max((resolvedTimestamp - firstTimestamp) / range, 0), 1)
-      const bucketIndex = Math.min(TREND_BUCKET_COUNT - 1, Math.floor(progress * TREND_BUCKET_COUNT))
-      buckets[bucketIndex] += getValue(log)
+    if (current) {
+      current.value += getValue(log)
+      return
+    }
+
+    totalsByDay.set(dayKey, {
+      date: day,
+      value: getValue(log),
     })
-
-    return buckets
-  }
-
-  datedLogs.forEach(({ log }, index) => {
-    const bucketIndex = Math.min(
-      TREND_BUCKET_COUNT - 1,
-      Math.floor((index / Math.max(datedLogs.length, 1)) * TREND_BUCKET_COUNT),
-    )
-    buckets[bucketIndex] += getValue(log)
   })
 
-  return buckets
+  return Array.from(totalsByDay.entries())
+    .sort((left, right) => left[1].date.getTime() - right[1].date.getTime())
+    .map(([dayKey, entry]) => ({
+      dayKey,
+      label: trendDayFormatter.format(entry.date),
+      value: entry.value,
+    }))
 }
 
 type TrendChartProps = {
-  values: number[]
+  points: DailyTrendPoint[]
   variant: 'area' | 'bars'
+  formatTooltipValue: (value: number) => string
 }
 
-function TrendChart({ values, variant }: TrendChartProps) {
+const getTrendPointX = (index: number, count: number, paddingX: number, chartWidth: number) => {
+  if (count <= 1) {
+    return paddingX + chartWidth / 2
+  }
+
+  return paddingX + (chartWidth / (count - 1)) * index
+}
+
+const toTooltipLeft = (x: number, width: number) =>
+  `${Math.min(Math.max((x / width) * 100, 14), 86).toFixed(2)}%`
+
+function TrendChart({ points, variant, formatTooltipValue }: TrendChartProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const width = 240
   const height = 70
   const paddingX = 4
   const paddingY = 6
   const chartWidth = width - paddingX * 2
   const chartHeight = height - paddingY * 2
-  const safeValues = values.length > 0 ? values : [0]
-  const maxValue = Math.max(...safeValues, 1)
+  const safePoints = points.length > 0 ? points : [{ dayKey: 'empty', label: '', value: 0 }]
+  const maxValue = Math.max(...safePoints.map((point) => point.value), 1)
+  const activePoint = hoveredIndex === null ? null : points[hoveredIndex]
 
   if (variant === 'bars') {
-    const barGap = 6
-    const barWidth = Math.max((chartWidth - barGap * (safeValues.length - 1)) / safeValues.length, 6)
+    const slotWidth = chartWidth / safePoints.length
+    const barWidth = Math.max(slotWidth - 1.5, 2)
+    const barInset = (slotWidth - barWidth) / 2
+    const activeX = hoveredIndex === null ? null : paddingX + hoveredIndex * slotWidth + slotWidth / 2
+    const tooltipLeft = activeX === null ? null : toTooltipLeft(activeX, width)
 
     return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="metric-chart" aria-hidden="true">
+      <div className="metric-chart-shell" onMouseLeave={() => setHoveredIndex(null)}>
+        {activePoint && tooltipLeft && (
+          <div className="metric-chart-tooltip" style={{ left: tooltipLeft }}>
+            <p className="metric-chart-tooltip-date">{activePoint.label}</p>
+            <p className="metric-chart-tooltip-value">{formatTooltipValue(activePoint.value)}</p>
+          </div>
+        )}
+        <svg viewBox={`0 0 ${width} ${height}`} className="metric-chart">
+          <line
+            x1={paddingX}
+            y1={height - paddingY}
+            x2={width - paddingX}
+            y2={height - paddingY}
+            className="metric-chart-baseline"
+          />
+          {safePoints.map((point, index) => {
+            const normalizedHeight = maxValue === 0 ? 0 : (point.value / maxValue) * chartHeight
+            const slotX = paddingX + index * slotWidth
+            const x = slotX + barInset
+            const y = height - paddingY - normalizedHeight
+            const isActive = hoveredIndex === index
+
+            return (
+              <g key={`${point.dayKey}-${point.value}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barWidth}
+                  height={Math.max(normalizedHeight, 2)}
+                  rx={3}
+                  className={isActive ? 'metric-chart-bar metric-chart-bar-active' : 'metric-chart-bar'}
+                />
+                {points[index] && (
+                  <rect
+                    x={slotX}
+                    y={paddingY}
+                    width={slotWidth}
+                    height={chartHeight}
+                    rx={5}
+                    className="metric-chart-hit-area"
+                    tabIndex={0}
+                    aria-label={`${point.label}: ${formatTooltipValue(point.value)}`}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onFocus={() => setHoveredIndex(index)}
+                    onBlur={() => setHoveredIndex(null)}
+                  />
+                )}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+    )
+  }
+
+  const chartPoints = safePoints.map((point, index) => {
+    const x = getTrendPointX(index, safePoints.length, paddingX, chartWidth)
+    const y = height - paddingY - (point.value / maxValue) * chartHeight
+    return { x, y }
+  })
+  const activeX = hoveredIndex === null ? null : chartPoints[hoveredIndex]?.x ?? null
+  const tooltipLeft = activeX === null ? null : toTooltipLeft(activeX, width)
+  const linePath = chartPoints
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(' ')
+  const areaPath = [
+    linePath,
+    `L ${chartPoints[chartPoints.length - 1].x.toFixed(2)} ${(height - paddingY).toFixed(2)}`,
+    `L ${chartPoints[0].x.toFixed(2)} ${(height - paddingY).toFixed(2)}`,
+    'Z',
+  ].join(' ')
+
+  return (
+    <div className="metric-chart-shell" onMouseLeave={() => setHoveredIndex(null)}>
+      {activePoint && tooltipLeft && (
+        <div className="metric-chart-tooltip" style={{ left: tooltipLeft }}>
+          <p className="metric-chart-tooltip-date">{activePoint.label}</p>
+          <p className="metric-chart-tooltip-value">{formatTooltipValue(activePoint.value)}</p>
+        </div>
+      )}
+      <svg viewBox={`0 0 ${width} ${height}`} className="metric-chart">
         <line
           x1={paddingX}
           y1={height - paddingY}
@@ -167,54 +260,46 @@ function TrendChart({ values, variant }: TrendChartProps) {
           y2={height - paddingY}
           className="metric-chart-baseline"
         />
-        {safeValues.map((value, index) => {
-          const normalizedHeight = maxValue === 0 ? 0 : (value / maxValue) * chartHeight
-          const x = paddingX + index * (barWidth + barGap)
-          const y = height - paddingY - normalizedHeight
+        <path d={areaPath} className="metric-chart-area" />
+        {activeX !== null && (
+          <line
+            x1={activeX}
+            y1={paddingY}
+            x2={activeX}
+            y2={height - paddingY}
+            className="metric-chart-guide"
+          />
+        )}
+        <path d={linePath} className="metric-chart-line" />
+        {chartPoints.map((point, index) => {
+          const isActive = hoveredIndex === index
+          const datum = points[index]
           return (
-            <rect
-              key={`${index}-${value}`}
-              x={x}
-              y={y}
-              width={barWidth}
-              height={Math.max(normalizedHeight, 2)}
-              rx={3}
-              className="metric-chart-bar"
-            />
+            <g key={`${safePoints[index].dayKey}-${safePoints[index].value}`}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={isActive ? 3.8 : 2.6}
+                className={isActive ? 'metric-chart-point metric-chart-point-active' : 'metric-chart-point'}
+              />
+              {datum && (
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={9}
+                  className="metric-chart-hit-area"
+                  tabIndex={0}
+                  aria-label={`${datum.label}: ${formatTooltipValue(datum.value)}`}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onFocus={() => setHoveredIndex(index)}
+                  onBlur={() => setHoveredIndex(null)}
+                />
+              )}
+            </g>
           )
         })}
       </svg>
-    )
-  }
-
-  const step = safeValues.length > 1 ? chartWidth / (safeValues.length - 1) : chartWidth
-  const points = safeValues.map((value, index) => {
-    const x = paddingX + step * index
-    const y = height - paddingY - (value / maxValue) * chartHeight
-    return { x, y }
-  })
-  const linePath = points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-    .join(' ')
-  const areaPath = [
-    linePath,
-    `L ${points[points.length - 1].x.toFixed(2)} ${(height - paddingY).toFixed(2)}`,
-    `L ${points[0].x.toFixed(2)} ${(height - paddingY).toFixed(2)}`,
-    'Z',
-  ].join(' ')
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="metric-chart" aria-hidden="true">
-      <line
-        x1={paddingX}
-        y1={height - paddingY}
-        x2={width - paddingX}
-        y2={height - paddingY}
-        className="metric-chart-baseline"
-      />
-      <path d={areaPath} className="metric-chart-area" />
-      <path d={linePath} className="metric-chart-line" />
-    </svg>
+    </div>
   )
 }
 
@@ -256,8 +341,8 @@ function LlmLogsPage() {
     return {
       totalTokens,
       totalRequests,
-      tokenTrend: buildTrendValues(logs, (log) => getTotalTokens(log) ?? 0),
-      requestTrend: buildTrendValues(logs, () => 1),
+      tokenTrend: buildDailyTrendPoints(logs, (log) => getTotalTokens(log) ?? 0),
+      requestTrend: buildDailyTrendPoints(logs, () => 1),
     }
   }, [logs])
 
@@ -371,14 +456,22 @@ function LlmLogsPage() {
                   <p className="llm-usage-metric-title">Total tokens</p>
                   <p className="llm-usage-metric-value">{formatMetricValue(summary.totalTokens)}</p>
                   <p className="llm-usage-metric-subtitle">Across {logs.length} recent requests</p>
-                  <TrendChart values={summary.tokenTrend} variant="area" />
+                  <TrendChart
+                    points={summary.tokenTrend}
+                    variant="area"
+                    formatTooltipValue={formatTooltipTokens}
+                  />
                 </section>
 
                 <section className="llm-usage-subsection">
                   <p className="llm-usage-metric-title">Total requests</p>
                   <p className="llm-usage-metric-value">{formatMetricValue(summary.totalRequests)}</p>
                   <p className="llm-usage-metric-subtitle">Across {logs.length} recent requests</p>
-                  <TrendChart values={summary.requestTrend} variant="bars" />
+                  <TrendChart
+                    points={summary.requestTrend}
+                    variant="bars"
+                    formatTooltipValue={formatTooltipRequests}
+                  />
                 </section>
               </aside>
             </div>
