@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import Button from './Button'
+import FitBadge from './FitBadge'
 import {
   API_BASE_URL,
   emptyFields,
@@ -104,32 +105,6 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [onClose, open])
-
-  const fitLabel = (fitClassification?: ExtractFieldsResponse['fit_classification']) => {
-    if (fitClassification === 'strong_fit') {
-      return 'Strong fit'
-    }
-    if (fitClassification === 'acceptable_intermediate') {
-      return 'Acceptable intermediate'
-    }
-    if (fitClassification === 'misaligned') {
-      return 'Misaligned'
-    }
-    return 'Unavailable'
-  }
-
-  const fitBadgeClass = (fitClassification?: ExtractFieldsResponse['fit_classification']) => {
-    if (fitClassification === 'strong_fit') {
-      return 'fit-badge fit-badge-strong'
-    }
-    if (fitClassification === 'acceptable_intermediate') {
-      return 'fit-badge fit-badge-acceptable'
-    }
-    if (fitClassification === 'misaligned') {
-      return 'fit-badge fit-badge-misaligned'
-    }
-    return 'fit-badge'
-  }
 
   const handleExtractFields = async (event: FormEvent) => {
     event.preventDefault()
@@ -282,7 +257,6 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
     Boolean(decision?.detail?.trim()) ||
     Boolean(decision?.risk_flags?.length) ||
     Boolean(decision?.clarifying_questions?.length)
-
   return (
     <div className="dialog-backdrop" onClick={onClose} role="presentation">
       <div
@@ -420,7 +394,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
               <div className="detail-section">
                 <div className="fit-summary">
                   <strong>Fit:</strong>
-                  <span className={fitBadgeClass(fields.fit_classification)}>{fitLabel(fields.fit_classification)}</span>
+                  <FitBadge fitClassification={fields?.fit_classification} fallbackLabel="Unavailable" />
                 </div>
                 {fields.fit_rationale ? <p className="fit-rationale">{fields.fit_rationale}</p> : null}
               </div>

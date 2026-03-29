@@ -1,10 +1,11 @@
+import FitBadge from '../components/FitBadge'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import ExtractJobDialog from '../components/ExtractJobDialog'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { API_BASE_URL, getApiErrorMessage, Job, JobListResponse } from '../lib/jobs'
-import { FitFilter, getFitBadgeClass, getFitLabel } from '../lib/jobDisplay'
+import { FitFilter } from '../lib/jobDisplay'
 
 function JobsPage() {
   const navigate = useNavigate()
@@ -195,9 +196,7 @@ function JobsPage() {
                           <div className="job-item-topline">
                             <p className="job-item-title">{job.title || 'Untitled job'}</p>
                             {fitClassification && (
-                              <span className={getFitBadgeClass(fitClassification)}>
-                                {getFitLabel(fitClassification)}
-                              </span>
+                              <FitBadge fitClassification={fitClassification} />
                             )}
                           </div>
                           <p className="job-item-primary-meta">

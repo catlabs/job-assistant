@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
+import Badge from './Badge'
+import FitBadge from './FitBadge'
 import { formatCreatedAt, Job } from '../lib/jobs'
-import { getFitBadgeClass, getFitLabel } from '../lib/jobDisplay'
 
 type JobDetailViewProps = {
   job: Job
@@ -71,13 +72,13 @@ function JobDetailView({ job }: JobDetailViewProps) {
               </p>
             </div>
 
-            <span className={getFitBadgeClass(fitClassification)}>{getFitLabel(fitClassification)}</span>
+            <FitBadge fitClassification={fitClassification} />
           </div>
 
-          <div className="job-detail-meta-inline">
-            <span className="profile-chip">Seniority: {job.analysis?.seniority || 'Unknown'}</span>
-            <span className="profile-chip">Source: {job.source || 'Unknown'}</span>
-            <span className="profile-chip">Saved: {formatCreatedAt(job.created_at)}</span>
+          <div className="badge-list job-detail-meta-inline">
+            <Badge tone="subtle">Seniority: {job.analysis?.seniority || 'Unknown'}</Badge>
+            <Badge tone="subtle">Source: {job.source || 'Unknown'}</Badge>
+            <Badge tone="subtle">Saved: {formatCreatedAt(job.created_at)}</Badge>
           </div>
 
           <div className="job-detail-link-row">
@@ -142,11 +143,11 @@ function JobDetailView({ job }: JobDetailViewProps) {
         <section className="job-detail-subsection">
           <h3 className="profile-section-title">Key signals</h3>
           {keywords.length > 0 ? (
-            <div className="profile-chip-list">
+            <div className="badge-list">
               {keywords.map((keyword, index) => (
-                <span key={`keyword-${index}`} className="profile-chip">
+                <Badge key={`keyword-${index}`} tone="subtle">
                   {keyword}
-                </span>
+                </Badge>
               ))}
             </div>
           ) : (

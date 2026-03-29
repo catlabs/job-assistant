@@ -1,5 +1,6 @@
 import { Check, LoaderCircle, PencilLine, Save } from 'lucide-react'
 import { type TextareaHTMLAttributes, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import Badge from '../components/Badge'
 import { getButtonClassName } from '../components/Button'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { ProfileUpdatePayload, fetchProfile, ProfileResponse, updateProfile } from '../lib/jobs'
@@ -458,14 +459,14 @@ function ProfilePage() {
                       </button>
                     </div>
 
-                    <div className="profile-inline-meta">
-                      <span className="profile-field-badge">Fixed</span>
+                    <div className="profile-inline-meta badge-list">
+                      <Badge tone="subtle">Fixed</Badge>
                     </div>
-                    <div className="profile-chip-list" aria-label={`Classification labels: ${labelsText || 'None'}`}>
+                    <div className="badge-list" aria-label={`Classification labels: ${labelsText || 'None'}`}>
                       {classificationLabels.map((label) => (
-                        <span key={label} className="profile-chip">
+                        <Badge key={label} tone="subtle">
                           {label}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                     <p className="muted">Classification labels are fixed for this app and cannot be changed.</p>

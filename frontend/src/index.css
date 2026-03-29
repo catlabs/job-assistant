@@ -577,30 +577,74 @@ select:focus-visible {
   color: var(--color-text-muted);
 }
 
-.fit-badge {
+.badge {
   display: inline-flex;
   align-items: center;
-  margin-left: var(--space-2);
-  padding: 0.18rem 0.5rem;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0.16rem 0.52rem;
   border-radius: 999px;
-  border: 1px solid rgba(13, 13, 13, 0.1);
-  background: #f7f7f7;
-  color: #303030;
-  font-size: 0.75rem;
+  border: 1px solid rgba(13, 13, 13, 0.08);
+  background: #f4f4f4;
+  color: #363636;
+  font-size: 0.76rem;
   font-weight: 650;
+  line-height: 1.1;
   white-space: nowrap;
+  vertical-align: middle;
 }
 
-.fit-badge-strong {
-  background: #f3f3f3;
+.badge-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
 }
 
-.fit-badge-acceptable {
-  background: #f7f7f7;
+.badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.fit-badge-misaligned {
-  background: #f8f8f8;
+.badge-neutral {
+  background: #f4f4f4;
+  color: #363636;
+}
+
+.badge-subtle {
+  background: #f1f3f4;
+  color: #4b5563;
+}
+
+.badge-danger {
+  color: var(--color-danger);
+  background: #fff6f5;
+  border-color: #f2c3bc;
+}
+
+.badge-fit-strong {
+  background: #edf2ef;
+  border-color: rgba(47, 71, 55, 0.14);
+  color: #2f4737;
+}
+
+.badge-fit-acceptable {
+  background: #f5f4ed;
+  border-color: rgba(89, 84, 58, 0.14);
+  color: #59543a;
+}
+
+.badge-fit-misaligned {
+  background: #f7efec;
+  border-color: rgba(122, 77, 63, 0.14);
+  color: #7a4d3f;
+}
+
+.badge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .fit-summary {
@@ -759,6 +803,11 @@ select:focus-visible {
   flex-wrap: wrap;
 }
 
+.job-item-topline .badge {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 .job-item-title {
   margin: 0;
   font-size: 0.96rem;
@@ -779,28 +828,6 @@ select:focus-visible {
 
 .job-item-meta-separator {
   color: rgba(64, 75, 87, 0.48);
-}
-
-.fit-badge {
-  margin-left: 0;
-  align-self: center;
-  padding: 0.2rem 0.5rem;
-  border-color: rgba(13, 13, 13, 0.09);
-  background: #f4f4f4;
-  color: #363636;
-  font-size: 0.875rem;
-}
-
-.fit-badge-strong {
-  background: #f0f2f1;
-}
-
-.fit-badge-acceptable {
-  background: #f4f4f2;
-}
-
-.fit-badge-misaligned {
-  background: #f5f3f2;
 }
 
 .detail-section {
@@ -1056,19 +1083,11 @@ select:focus-visible {
   display: block;
 }
 
-.profile-field-meta,
-.profile-field-badge {
+.profile-field-meta {
   color: #6a6a6a;
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
-}
-
-.profile-field-badge {
-  padding: 0.18rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid rgba(13, 13, 13, 0.08);
-  background: #f1f1ef;
 }
 
 .profile-display-copy {
@@ -1096,31 +1115,12 @@ select:focus-visible {
   line-height: 1.55;
 }
 
-.profile-chip-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
 .profile-dashboard-column-right .profile-subsection {
   gap: var(--space-3);
 }
 
 .profile-dashboard-column-right .profile-section-header-copy {
   gap: 0.2rem;
-}
-
-.profile-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: #f1f3f4;
-  border: 1px solid rgba(13, 13, 13, 0.08);
-  color: #303030;
-  font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .job-description {
@@ -1241,6 +1241,11 @@ select:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+.job-detail-hero-header .badge {
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .job-detail-link-row {
@@ -1538,26 +1543,8 @@ select:focus-visible {
   text-align: right;
 }
 
-.llm-log-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  justify-content: center;
+.llm-logs-table td:nth-child(5) .badge {
   min-width: 58px;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: #f5f5f5;
-  border: 1px solid rgba(13, 13, 13, 0.08);
-  color: #444444;
-  font-size: 0.76rem;
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.llm-log-status-error {
-  color: var(--color-danger);
-  background: #fff6f5;
-  border-color: #f2c3bc;
 }
 
 .compact-job-link {

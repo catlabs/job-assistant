@@ -1,5 +1,6 @@
 import { UIEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import Badge from '../components/Badge'
 import { getButtonClassName } from '../components/Button'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { fetchLlmLogs, LlmCallLog } from '../lib/jobs'
@@ -498,10 +499,9 @@ function LlmLogsPage() {
                       </thead>
                       <tbody>
                         {logs.map((log) => {
-                          const statusClassName =
-                            log.status === 'error' ? 'llm-log-status llm-log-status-error' : 'llm-log-status'
                           const operationLabel = formatOperationLabel(log.operation)
                           const compactModelName = getCompactModelName(log.model)
+                          const statusTone = log.status === 'error' ? 'danger' : 'neutral'
 
                           return (
                             <tr key={log.id}>
@@ -516,12 +516,12 @@ function LlmLogsPage() {
                                 {formatTokens(log)}
                               </td>
                               <td>
-                                <span
-                                  className={statusClassName}
+                                <Badge
+                                  tone={statusTone}
                                   title={log.error_message || (formatCost(log) !== '—' ? `Cost: ${formatCost(log)}` : undefined)}
                                 >
                                   {log.status}
-                                </span>
+                                </Badge>
                               </td>
                               <td>
                                 {log.job_id ? (
