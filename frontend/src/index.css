@@ -160,7 +160,7 @@ a:hover {
 }
 
 .nav-link::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -416,21 +416,13 @@ select:focus-visible {
 .app-button {
   --app-button-min-height: 30px;
   --app-button-padding-block: 0.34rem;
-  --app-button-padding-inline: 0.68rem;
-  --app-button-radius: 4px;
+  --app-button-padding-inline: 12px;
+  --app-button-radius: 8px;
   --app-button-font-size: 0.82rem;
   --app-button-text-color: #ffffff;
   --app-button-background: #263442;
   --app-button-border-color: #263442;
   --app-button-shadow: 0 6px 16px rgba(31, 41, 51, 0.1);
-  --app-button-hover-text-color: var(--app-button-text-color);
-  --app-button-hover-background: #1f2933;
-  --app-button-hover-border-color: #1f2933;
-  --app-button-hover-shadow: 0 8px 18px rgba(31, 41, 51, 0.12);
-  --app-button-active-text-color: var(--app-button-hover-text-color);
-  --app-button-active-background: #1a2530;
-  --app-button-active-border-color: #1a2530;
-  --app-button-active-shadow: 0 4px 10px rgba(17, 24, 39, 0.11);
   width: fit-content;
   min-height: var(--app-button-min-height);
   display: inline-flex;
@@ -454,13 +446,13 @@ select:focus-visible {
     border-color 120ms ease,
     box-shadow 120ms ease,
     color 120ms ease,
-    transform 120ms ease;
+    opacity 120ms ease;
 }
 
 .app-button-compact {
   --app-button-min-height: 30px;
   --app-button-padding-block: 0.34rem;
-  --app-button-padding-inline: 0.68rem;
+  --app-button-padding-inline: 12px;
   --app-button-font-size: 0.82rem;
 }
 
@@ -480,73 +472,34 @@ select:focus-visible {
   --app-button-background: #263442;
   --app-button-border-color: #263442;
   --app-button-shadow: 0 6px 16px rgba(31, 41, 51, 0.1);
-  --app-button-hover-text-color: #ffffff;
-  --app-button-hover-background: #1f2933;
-  --app-button-hover-border-color: #1f2933;
-  --app-button-hover-shadow: 0 8px 18px rgba(31, 41, 51, 0.12);
-  --app-button-active-text-color: #ffffff;
-  --app-button-active-background: #1a2530;
-  --app-button-active-border-color: #1a2530;
-  --app-button-active-shadow: 0 4px 10px rgba(17, 24, 39, 0.11);
 }
 
 .app-button-primary:hover:not(:disabled) {
-  color: var(--app-button-hover-text-color);
-  background: var(--app-button-hover-background);
-  border-color: var(--app-button-hover-border-color);
-  box-shadow: var(--app-button-hover-shadow);
+  color: var(--app-button-text-color);
+  background: var(--app-button-background);
+  border-color: var(--app-button-border-color);
+  box-shadow: var(--app-button-shadow);
 }
 
 .app-button-primary:active:not(:disabled) {
-  color: var(--app-button-active-text-color);
-  background: var(--app-button-active-background);
-  border-color: var(--app-button-active-border-color);
-  box-shadow: var(--app-button-active-shadow);
-  transform: translateY(0.5px);
-}
-
-.app-button-secondary {
-  --app-button-text-color: #4a4a4a;
-  --app-button-background: #f6f6f5;
-  --app-button-border-color: rgba(13, 13, 13, 0.1);
-  --app-button-shadow: 0 6px 16px rgba(31, 41, 51, 0.08);
-  --app-button-hover-text-color: #4a4a4a;
-  --app-button-hover-background: #ededeb;
-  --app-button-hover-border-color: rgba(13, 13, 13, 0.12);
-  --app-button-hover-shadow: 0 7px 18px rgba(31, 41, 51, 0.09);
-  --app-button-active-text-color: #4a4a4a;
-  --app-button-active-background: #e7e7e5;
-  --app-button-active-border-color: rgba(13, 13, 13, 0.14);
-  --app-button-active-shadow: 0 4px 10px rgba(31, 41, 51, 0.08);
-}
-
-.app-button-secondary:hover:not(:disabled) {
-  color: var(--app-button-hover-text-color);
-  background: var(--app-button-hover-background);
-  border-color: var(--app-button-hover-border-color);
-  box-shadow: var(--app-button-hover-shadow);
-}
-
-.app-button-secondary:active:not(:disabled) {
-  color: var(--app-button-active-text-color);
-  background: var(--app-button-active-background);
-  border-color: var(--app-button-active-border-color);
-  box-shadow: var(--app-button-active-shadow);
-  transform: translateY(0.5px);
+  color: var(--app-button-text-color);
+  background: var(--app-button-background);
+  border-color: var(--app-button-border-color);
+  box-shadow: var(--app-button-shadow);
 }
 
 .app-button-ghost {
-  --app-button-text-color: #1d4ed8;
-  --app-button-background: #f8fbff;
-  --app-button-border-color: rgba(29, 78, 216, 0.14);
+  --app-button-text-color: #555555;
+  --app-button-background: transparent;
+  --app-button-border-color: transparent;
   --app-button-shadow: none;
-  --app-button-hover-text-color: #1e40af;
-  --app-button-hover-background: #eef4ff;
-  --app-button-hover-border-color: rgba(29, 78, 216, 0.18);
+  --app-button-hover-text-color: #202020;
+  --app-button-hover-background: color-mix(in oklab, #0d0d0d 8%, transparent);
+  --app-button-hover-border-color: transparent;
   --app-button-hover-shadow: none;
-  --app-button-active-text-color: #1e3a8a;
-  --app-button-active-background: #e5efff;
-  --app-button-active-border-color: rgba(29, 78, 216, 0.2);
+  --app-button-active-text-color: #202020;
+  --app-button-active-background: color-mix(in oklab, #0d0d0d 10%, transparent);
+  --app-button-active-border-color: transparent;
   --app-button-active-shadow: none;
 }
 
@@ -568,7 +521,6 @@ select:focus-visible {
 .app-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
-  box-shadow: 0 3px 8px rgba(31, 41, 51, 0.05);
   transform: none;
 }
 
@@ -589,31 +541,6 @@ select:focus-visible {
 
 .profile-save-action {
   min-width: 8.9rem;
-}
-
-.profile-save-action:hover:not(:disabled) {
-  box-shadow: 0 7px 18px rgba(31, 41, 51, 0.09);
-}
-
-.profile-save-action:disabled {
-  opacity: 1;
-  color: #7a7a7a;
-  background: #f6f6f5;
-  border-color: rgba(13, 13, 13, 0.08);
-  box-shadow: 0 3px 8px rgba(31, 41, 51, 0.05);
-}
-
-.profile-save-action-dirty {
-  color: #ffffff;
-  background: #263442;
-  border-color: #263442;
-  box-shadow: 0 6px 16px rgba(38, 52, 66, 0.12);
-}
-
-.profile-save-action-dirty:hover:not(:disabled) {
-  background: #1f2933;
-  border-color: #1f2933;
-  box-shadow: 0 8px 18px rgba(31, 41, 51, 0.12);
 }
 
 @keyframes spin {
@@ -744,7 +671,7 @@ select:focus-visible {
 }
 
 .fit-filter-control::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   right: 0.82rem;
@@ -1071,40 +998,30 @@ select:focus-visible {
 }
 
 .profile-edit-toggle {
-  background: transparent;
-  border-color: transparent;
   color: #666666;
   line-height: 1;
-  box-shadow: none;
   opacity: 0.82;
   flex-shrink: 0;
   transition: opacity 120ms ease;
 }
 
 .profile-edit-toggle:hover:not(:disabled) {
-  background: rgba(13, 13, 13, 0.04);
-  border-color: rgba(13, 13, 13, 0.06);
   color: #303030;
   opacity: 1;
 }
 
 .profile-edit-toggle:active:not(:disabled) {
-  background: rgba(13, 13, 13, 0.06);
-  border-color: rgba(13, 13, 13, 0.08);
+  color: #202020;
 }
 
-.profile-edit-toggle[aria-pressed='true'] {
-  background: rgba(13, 13, 13, 0.04);
+.profile-edit-toggle[aria-pressed="true"] {
   color: #303030;
   opacity: 1;
 }
 
 .profile-edit-toggle:disabled {
-  background: transparent;
-  border-color: transparent;
   color: #9a9a9a;
   opacity: 0.45;
-  box-shadow: none;
 }
 
 .profile-field-grid {
@@ -1400,14 +1317,14 @@ select:focus-visible {
 }
 
 .job-detail-raw-details summary::before {
-  content: '+';
+  content: "+";
   display: inline-block;
   width: 1rem;
   color: #6a6a6a;
 }
 
 .job-detail-raw-details[open] summary::before {
-  content: '−';
+  content: "−";
 }
 
 .job-detail-raw-copy {
@@ -1738,7 +1655,9 @@ select:focus-visible {
 
 .metric-chart-bar {
   fill: rgba(75, 107, 155, 0.75);
-  transition: fill 140ms ease, opacity 140ms ease;
+  transition:
+    fill 140ms ease,
+    opacity 140ms ease;
 }
 
 .metric-chart-bar-active {
@@ -1749,7 +1668,9 @@ select:focus-visible {
   fill: #ffffff;
   stroke: #4b6b9b;
   stroke-width: 1.5;
-  transition: r 140ms ease, fill 140ms ease;
+  transition:
+    r 140ms ease,
+    fill 140ms ease;
 }
 
 .metric-chart-point-active {

@@ -297,7 +297,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
             <h2 id="extract-job-dialog-title">Add job</h2>
             <p className="page-subtitle">Paste a job description, review the analysis, then save it to Jobs.</p>
           </div>
-          <Button type="button" variant="secondary" size="compact" className="header-action-button" onClick={onClose}>
+          <Button type="button" variant="ghost" size="compact" className="header-action-button" onClick={onClose}>
             Close
           </Button>
         </div>

@@ -67,7 +67,7 @@ function JobComparePage() {
         {
           key: 'back',
           label: 'Back to Jobs',
-          variant: 'secondary' as const,
+          variant: 'ghost' as const,
           to: '/jobs',
         },
       ],
@@ -83,7 +83,9 @@ function JobComparePage() {
         <div className="content-scroll-area">
           <section className="content-block">
             <section className="panel">
-              <p className="muted">Choose two different jobs to compare from the saved jobs list.</p>
+              <p className="muted">
+                Choose two different jobs to compare from the saved jobs list.
+              </p>
             </section>
           </section>
         </div>
@@ -98,7 +100,9 @@ function JobComparePage() {
           <section className="panel">
             {loading && <p>Loading selected jobs…</p>}
             {!loading && error && <p className="error">{error}</p>}
-            {!loading && !error && jobs && <JobCompareTable firstJob={jobs[0]} secondJob={jobs[1]} />}
+            {!loading && !error && jobs && (
+              <JobCompareTable firstJob={jobs[0]} secondJob={jobs[1]} />
+            )}
           </section>
         </section>
       </div>

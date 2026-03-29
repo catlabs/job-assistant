@@ -276,8 +276,8 @@ function ProfilePage() {
             void handleSave()
           },
           icon: saveButtonIcon,
-          variant: 'secondary' as const,
-          className: `profile-save-action ${isDirty ? 'profile-save-action-dirty' : ''}`.trim(),
+          variant: 'primary' as const,
+          className: 'profile-save-action',
           disabled: saveLoading || loading || !isDirty,
         },
       ],
