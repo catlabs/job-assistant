@@ -1,0 +1,37 @@
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+.error,
+.success {
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.error {
+  color: var(--color-danger);
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+}
+
+.success {
+  color: var(--color-success);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

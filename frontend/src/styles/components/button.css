@@ -1,0 +1,121 @@
+.app-button {
+  --app-button-min-height: 30px;
+  --app-button-padding-block: 0.34rem;
+  --app-button-padding-inline: 12px;
+  --app-button-radius: 8px;
+  --app-button-font-size: 0.82rem;
+  --app-button-text-color: #ffffff;
+  --app-button-background: #263442;
+  --app-button-border-color: #263442;
+  --app-button-shadow: 0 6px 16px rgba(31, 41, 51, 0.1);
+  width: fit-content;
+  min-height: var(--app-button-min-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  background: var(--app-button-background);
+  color: var(--app-button-text-color);
+  border: 1px solid var(--app-button-border-color);
+  border-radius: var(--app-button-radius);
+  padding: var(--app-button-padding-block) var(--app-button-padding-inline);
+  font-size: var(--app-button-font-size);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: var(--app-button-shadow);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease,
+    opacity 120ms ease;
+}
+
+.app-button-compact {
+  --app-button-min-height: 30px;
+  --app-button-padding-block: 0.34rem;
+  --app-button-padding-inline: 12px;
+  --app-button-font-size: 0.82rem;
+}
+
+.app-button-icon {
+  --app-button-min-height: 1.9rem;
+  --app-button-padding-block: 0;
+  --app-button-padding-inline: 0;
+  --app-button-radius: 999px;
+  width: 1.9rem;
+  min-width: 1.9rem;
+  gap: 0;
+  box-shadow: none;
+}
+
+.app-button-primary {
+  --app-button-text-color: #ffffff;
+  --app-button-background: #263442;
+  --app-button-border-color: #263442;
+  --app-button-shadow: 0 6px 16px rgba(31, 41, 51, 0.1);
+}
+
+.app-button-primary:hover:not(:disabled) {
+  color: var(--app-button-text-color);
+  background: var(--app-button-background);
+  border-color: var(--app-button-border-color);
+  box-shadow: var(--app-button-shadow);
+}
+
+.app-button-primary:active:not(:disabled) {
+  color: var(--app-button-text-color);
+  background: var(--app-button-background);
+  border-color: var(--app-button-border-color);
+  box-shadow: var(--app-button-shadow);
+}
+
+.app-button-ghost {
+  --app-button-text-color: #555555;
+  --app-button-background: transparent;
+  --app-button-border-color: transparent;
+  --app-button-shadow: none;
+  --app-button-hover-text-color: #202020;
+  --app-button-hover-background: color-mix(in oklab, #0d0d0d 8%, transparent);
+  --app-button-hover-border-color: transparent;
+  --app-button-hover-shadow: none;
+  --app-button-active-text-color: #202020;
+  --app-button-active-background: color-mix(in oklab, #0d0d0d 10%, transparent);
+  --app-button-active-border-color: transparent;
+  --app-button-active-shadow: none;
+}
+
+.app-button-ghost:hover:not(:disabled) {
+  color: var(--app-button-hover-text-color);
+  background: var(--app-button-hover-background);
+  border-color: var(--app-button-hover-border-color);
+  box-shadow: var(--app-button-hover-shadow);
+}
+
+.app-button-ghost:active:not(:disabled) {
+  color: var(--app-button-active-text-color);
+  background: var(--app-button-active-background);
+  border-color: var(--app-button-active-border-color);
+  box-shadow: var(--app-button-active-shadow);
+  transform: translateY(0.5px);
+}
+
+.app-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+}
+
+.header-action-button {
+  flex-shrink: 0;
+}
+
+.header-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
