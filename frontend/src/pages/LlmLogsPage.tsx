@@ -1,9 +1,11 @@
 import { UIEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { getButtonClassName } from '../components/Button'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { fetchLlmLogs, LlmCallLog } from '../lib/jobs'
 
 const LOGS_PAGE_SIZE = 20
+const compactJobLinkClassName = getButtonClassName({ variant: 'ghost', size: 'compact', className: 'compact-job-link' })
 
 const integerFormatter = new Intl.NumberFormat()
 const compactNumberFormatter = new Intl.NumberFormat(undefined, {
@@ -525,7 +527,7 @@ function LlmLogsPage() {
                                 {log.job_id ? (
                                   <Link
                                     to={`/jobs/${log.job_id}`}
-                                    className="compact-job-link"
+                                    className={compactJobLinkClassName}
                                     title={`Open job ${log.job_id}`}
                                     aria-label={`Open related job ${log.job_id}`}
                                   >

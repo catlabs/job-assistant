@@ -1,6 +1,7 @@
 import { Briefcase, FileText, PanelLeftClose, PanelLeftOpen, User } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import Button, { getButtonClassName } from './components/Button'
 import { HeaderAction, PageHeaderConfig, PageHeaderProvider } from './components/PageHeaderContext'
 import JobComparePage from './pages/JobComparePage'
 import JobDetailPage from './pages/JobDetailPage'
@@ -42,13 +43,16 @@ function App() {
   ]
 
   const renderHeaderAction = (action: HeaderAction) => {
-    const className = ['app-button', 'header-action-button', action.variant === 'secondary' ? 'secondary-button' : '', action.className ?? '']
-      .filter(Boolean)
-      .join(' ')
+    const actionClassName = ['header-action-button', action.className ?? ''].filter(Boolean).join(' ')
+    const linkClassName = getButtonClassName({
+      variant: action.variant,
+      size: 'compact',
+      className: actionClassName,
+    })
 
     if (action.to) {
       return (
-        <Link key={action.key} to={action.to} className={className}>
+        <Link key={action.key} to={action.to} className={linkClassName}>
           {action.icon ? <span className="header-action-icon" aria-hidden="true">{action.icon}</span> : null}
           {action.label}
         </Link>
@@ -56,16 +60,17 @@ function App() {
     }
 
     return (
-      <button
+      <Button
         key={action.key}
-        type="button"
-        className={className}
+        variant={action.variant}
+        size="compact"
+        className={actionClassName}
         onClick={action.onClick}
         disabled={action.disabled}
       >
         {action.icon ? <span className="header-action-icon" aria-hidden="true">{action.icon}</span> : null}
         {action.label}
-      </button>
+      </Button>
     )
   }
 

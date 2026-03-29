@@ -1,5 +1,6 @@
 import { Check, LoaderCircle, PencilLine, Save } from 'lucide-react'
 import { type TextareaHTMLAttributes, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { getButtonClassName } from '../components/Button'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { ProfileUpdatePayload, fetchProfile, ProfileResponse, updateProfile } from '../lib/jobs'
 
@@ -19,6 +20,7 @@ const linesToList = (value: string): string[] =>
     .filter(Boolean)
 
 const listToLines = (value: string[] | undefined): string => (Array.isArray(value) ? value.join('\n') : '')
+const profileEditToggleClassName = getButtonClassName({ variant: 'ghost', size: 'icon', className: 'profile-edit-toggle' })
 
 const resizeTextarea = (textarea: HTMLTextAreaElement | null) => {
   if (!textarea) {
@@ -308,7 +310,7 @@ function ProfilePage() {
 
                       <button
                         type="button"
-                        className="profile-edit-toggle"
+                        className={profileEditToggleClassName}
                         onClick={() => toggleSectionEditing('summary')}
                         aria-pressed={editingSections.summary}
                         aria-label={editingSections.summary ? 'Finish editing human summary' : 'Edit human summary'}
@@ -350,7 +352,7 @@ function ProfilePage() {
 
                       <button
                         type="button"
-                        className="profile-edit-toggle"
+                        className={profileEditToggleClassName}
                         onClick={() => toggleSectionEditing('strongFitSignals')}
                         aria-pressed={editingSections.strongFitSignals}
                         aria-label={editingSections.strongFitSignals ? 'Finish editing strong fit signals' : 'Edit strong fit signals'}
@@ -383,7 +385,7 @@ function ProfilePage() {
 
                       <button
                         type="button"
-                        className="profile-edit-toggle"
+                        className={profileEditToggleClassName}
                         onClick={() => toggleSectionEditing('acceptableSignals')}
                         aria-pressed={editingSections.acceptableSignals}
                         aria-label={editingSections.acceptableSignals ? 'Finish editing acceptable signals' : 'Edit acceptable signals'}
@@ -415,7 +417,7 @@ function ProfilePage() {
 
                       <button
                         type="button"
-                        className="profile-edit-toggle"
+                        className={profileEditToggleClassName}
                         onClick={() => toggleSectionEditing('misalignedSignals')}
                         aria-pressed={editingSections.misalignedSignals}
                         aria-label={editingSections.misalignedSignals ? 'Finish editing misaligned signals' : 'Edit misaligned signals'}
@@ -447,7 +449,7 @@ function ProfilePage() {
 
                       <button
                         type="button"
-                        className="profile-edit-toggle"
+                        className={profileEditToggleClassName}
                         disabled
                         aria-label="Classification labels are fixed"
                         title="Classification labels are fixed"
@@ -478,7 +480,7 @@ function ProfilePage() {
 
                       <button
                         type="button"
-                        className="profile-edit-toggle"
+                        className={profileEditToggleClassName}
                         onClick={() => toggleSectionEditing('interpretationRules')}
                         aria-pressed={editingSections.interpretationRules}
                         aria-label={editingSections.interpretationRules ? 'Finish editing interpretation rules' : 'Edit interpretation rules'}
@@ -512,7 +514,7 @@ function ProfilePage() {
 
                       <button
                         type="button"
-                        className="profile-edit-toggle"
+                        className={profileEditToggleClassName}
                         onClick={() => toggleSectionEditing('decisionDimensions')}
                         aria-pressed={editingSections.decisionDimensions}
                         aria-label={editingSections.decisionDimensions ? 'Finish editing decision dimensions' : 'Edit decision dimensions'}

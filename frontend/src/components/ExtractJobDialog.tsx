@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import Button from './Button'
 import {
   API_BASE_URL,
   emptyFields,
@@ -293,12 +294,12 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
       >
         <div className="dialog-header">
           <div>
-            <h2 id="extract-job-dialog-title">Extract job</h2>
-            <p className="page-subtitle">Paste a job description, then extract fields and save it to Jobs.</p>
+            <h2 id="extract-job-dialog-title">Add job</h2>
+            <p className="page-subtitle">Paste a job description, review the analysis, then save it to Jobs.</p>
           </div>
-          <button type="button" className="secondary-button header-action-button" onClick={onClose}>
+          <Button type="button" variant="secondary" size="compact" className="header-action-button" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
 
         <div className="dialog-body">
@@ -329,9 +330,9 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
               </label>
             )}
             {modelLoadError && <p className="muted">{modelLoadError}</p>}
-            <button type="submit" disabled={loading}>
-              {loading ? 'Extracting…' : 'Extract fields'}
-            </button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Analyzing…' : 'Analyze job'}
+            </Button>
           </form>
 
           {error && <p className="error">{error}</p>}
@@ -457,9 +458,9 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
               )}
 
               <div className="detail-section">
-                <button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
-                  {saveLoading ? 'Saving…' : 'Save'}
-                </button>
+                <Button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
+                  {saveLoading ? 'Saving…' : 'Save job'}
+                </Button>
 
                 {saveError && <p className="error">{saveError}</p>}
                 {saveSuccess && <p className="success">{saveSuccess}</p>}

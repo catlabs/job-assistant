@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import Button from '../components/Button'
 import {
   API_BASE_URL,
   emptyFields,
@@ -114,7 +115,7 @@ function ExtractPage() {
 
     if (!rawText.trim()) {
       setFields(null)
-      setError('Please paste a job description before extracting fields.')
+      setError('Please paste a job description before analyzing it.')
       return
     }
 
@@ -147,7 +148,7 @@ function ExtractPage() {
       setFields({ ...emptyFields, ...data })
     } catch (_error) {
       setFields(null)
-      setError('Could not extract fields. Please try again with more complete text.')
+      setError('Could not analyze this job. Please try again with more complete text.')
     } finally {
       setLoading(false)
     }
@@ -260,7 +261,7 @@ function ExtractPage() {
     <div className="content-page">
       <section className="page-heading content-block">
         <h1>Job Field Extractor</h1>
-        <p className="page-subtitle">Paste a job description, then click Extract fields.</p>
+        <p className="page-subtitle">Paste a job description, analyze it, then save it.</p>
       </section>
 
       <div className="content-scroll-area">
@@ -292,9 +293,9 @@ function ExtractPage() {
               </label>
             )}
             {modelLoadError && <p className="muted">{modelLoadError}</p>}
-            <button type="submit" disabled={loading}>
-              {loading ? 'Extracting…' : 'Extract fields'}
-            </button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Analyzing…' : 'Analyze job'}
+            </Button>
           </form>
         </section>
 
@@ -427,9 +428,9 @@ function ExtractPage() {
             )}
 
             <div className="detail-section">
-              <button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
-                {saveLoading ? 'Saving…' : 'Save'}
-              </button>
+              <Button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
+                {saveLoading ? 'Saving…' : 'Save job'}
+              </Button>
 
               {saveError && <p className="error">{saveError}</p>}
               {saveSuccess && <p className="success">{saveSuccess}</p>}

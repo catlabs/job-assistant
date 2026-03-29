@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Button from '../components/Button'
 import ExtractJobDialog from '../components/ExtractJobDialog'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { API_BASE_URL, getApiErrorMessage, Job, JobListResponse } from '../lib/jobs'
@@ -105,19 +106,12 @@ function JobsPage() {
   const headerActions = useMemo(
     () => [
       {
-        key: 'extract',
-        label: 'Extract',
-        variant: 'secondary' as const,
+        key: 'add-job',
+        label: 'Add job',
         onClick: () => setIsExtractDialogOpen(true),
       },
-      {
-        key: 'compare',
-        label: 'Compare selected',
-        onClick: handleCompareNavigation,
-        disabled: !canCompare,
-      },
     ],
-    [canCompare, handleCompareNavigation],
+    [],
   )
 
   const pageHeaderConfig = useMemo(
@@ -141,9 +135,10 @@ function JobsPage() {
             {!jobsLoading && !jobsError && jobs.length > 0 && (
               <>
                 <div className="jobs-list-header">
-                  <label className="fit-filter-control">
-                    Fit filter
+                  <div className="fit-filter-control">
                     <select
+                      className="compact-select"
+                      aria-label="Filter jobs by fit"
                       value={fitFilter}
                       onChange={(event) => {
                         setFitFilter(event.target.value as FitFilter)
@@ -157,7 +152,10 @@ function JobsPage() {
                       <option value="misaligned">Misaligned</option>
                       <option value="unassessed">Unassessed</option>
                     </select>
-                  </label>
+                  </div>
+                  <p className="jobs-list-count">
+                    {filteredJobs.length} job{filteredJobs.length === 1 ? '' : 's'}
+                  </p>
                 </div>
                 {compareHint && <p className="muted compare-hint">{compareHint}</p>}
                 {filteredJobs.length === 0 && <p className="muted">No jobs match this fit filter.</p>}
@@ -169,7 +167,7 @@ function JobsPage() {
                     return (
                       <li
                         key={job.id}
-                        className="job-item"
+                        className={`job-item ${isCompared ? 'job-item-selected' : ''}`}
                         onClick={() => navigate(`/jobs/${jobId}`)}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
@@ -194,17 +192,21 @@ function JobsPage() {
                           />
                         </div>
                         <div className="job-item-content">
-                          <p className="job-item-title">
-                            <strong>{job.title || 'Untitled job'}</strong>
+                          <div className="job-item-topline">
+                            <p className="job-item-title">{job.title || 'Untitled job'}</p>
                             {fitClassification && (
                               <span className={getFitBadgeClass(fitClassification)}>
                                 {getFitLabel(fitClassification)}
                               </span>
                             )}
+                          </div>
+                          <p className="job-item-primary-meta">
+                            <span>{job.company || 'Unknown company'}</span>
+                            <span className="job-item-meta-separator" aria-hidden="true">
+                              •
+                            </span>
+                            <span>{job.location || 'Unknown location'}</span>
                           </p>
-                          <p className="job-meta">{job.company || 'Unknown company'}</p>
-                          <p className="job-meta">{job.location || 'Unknown location'}</p>
-                          <p className="job-meta">Source: {job.source || 'unknown'} | ID: {job.id}</p>
                         </div>
                       </li>
                     )
@@ -215,6 +217,15 @@ function JobsPage() {
           </section>
         </section>
       </div>
+
+      {canCompare && (
+        <div className="jobs-compare-float" role="status" aria-live="polite">
+          <p className="jobs-compare-float-copy">2 jobs selected</p>
+          <Button type="button" size="compact" onClick={handleCompareNavigation}>
+            Compare jobs
+          </Button>
+        </div>
+      )}
 
       <ExtractJobDialog open={isExtractDialogOpen} onClose={() => setIsExtractDialogOpen(false)} />
     </div>

@@ -63,16 +63,21 @@ function JobDetailPage() {
   usePageHeader(pageHeaderConfig)
 
   return (
-    <div className="content-page">
-      <div className="content-scroll-area">
-        <section className="content-block">
-          <section className="panel job-detail-panel">
+    <div className="content-page content-page-static job-detail-page">
+      <div className="content-static-area">
+        {(loading || error || isNotFound) && (
+          <section className="content-block">
             {loading && <p>Loading job details…</p>}
             {!loading && error && <p className="error">{error}</p>}
             {!loading && !error && isNotFound && <p className="muted">This job could not be found.</p>}
-            {!loading && !error && !isNotFound && job && <JobDetailView job={job} />}
           </section>
-        </section>
+        )}
+
+        {!loading && !error && !isNotFound && job && (
+          <section className="job-detail-block">
+            <JobDetailView job={job} />
+          </section>
+        )}
       </div>
     </div>
   )

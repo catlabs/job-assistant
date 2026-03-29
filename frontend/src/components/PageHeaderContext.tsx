@@ -1,11 +1,12 @@
 import { createContext, ReactNode, useContext, useLayoutEffect } from 'react'
+import type { ButtonVariant } from './Button'
 
 export type HeaderAction = {
   key: string
   label: string
   onClick?: () => void
   to?: string
-  variant?: 'primary' | 'secondary'
+  variant?: ButtonVariant
   disabled?: boolean
   className?: string
   icon?: ReactNode
