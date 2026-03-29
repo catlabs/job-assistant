@@ -756,7 +756,7 @@ select:focus-visible {
 .job-item {
   display: grid;
   grid-template-columns: auto 1fr;
-  align-items: center;
+  align-items: start;
   gap: 0.85rem;
   border: 0;
   border-bottom: 1px solid var(--color-border);
@@ -782,7 +782,7 @@ select:focus-visible {
   display: flex;
   align-items: center;
   align-self: start;
-  padding-top: 0.18rem;
+  min-height: 1.3rem;
 }
 
 .job-item-checkbox input {
@@ -798,14 +798,32 @@ select:focus-visible {
 
 .job-item-topline {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
 }
 
-.job-item-topline .badge {
+.job-item-topline .badge,
+.job-item-topline .fit-icon {
   flex-shrink: 0;
-  align-self: flex-start;
+}
+
+.fit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.fit-icon-fit-strong {
+  color: #2f4737;
+}
+
+.fit-icon-fit-acceptable {
+  color: #59543a;
+}
+
+.fit-icon-fit-misaligned {
+  color: #7a4d3f;
 }
 
 .job-item-title {
@@ -1210,14 +1228,6 @@ select:focus-visible {
   display: grid;
   gap: 0.35rem;
   min-width: 0;
-}
-
-.job-detail-eyebrow {
-  color: #6a6a6a;
-  font-size: 0.76rem;
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
 }
 
 .job-detail-title {

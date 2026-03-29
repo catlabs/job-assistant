@@ -1,4 +1,4 @@
-import FitBadge from '../components/FitBadge'
+import FitIcon from '../components/FitIcon'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
@@ -195,9 +195,7 @@ function JobsPage() {
                         <div className="job-item-content">
                           <div className="job-item-topline">
                             <p className="job-item-title">{job.title || 'Untitled job'}</p>
-                            {fitClassification && (
-                              <FitBadge fitClassification={fitClassification} />
-                            )}
+                            {fitClassification && <FitIcon fitClassification={fitClassification} />}
                           </div>
                           <p className="job-item-primary-meta">
                             <span>{job.company || 'Unknown company'}</span>

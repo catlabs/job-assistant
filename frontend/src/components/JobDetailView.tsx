@@ -61,7 +61,6 @@ function JobDetailView({ job }: JobDetailViewProps) {
         <section className="job-detail-subsection job-detail-subsection-hero">
           <div className="job-detail-hero-header">
             <div className="job-detail-hero-copy">
-              <p className="job-detail-eyebrow">Saved job</p>
               <h2 className="job-detail-title">{job.title || 'Untitled job'}</h2>
               <p className="job-detail-primary-meta">
                 <span>{job.company || 'Unknown company'}</span>
