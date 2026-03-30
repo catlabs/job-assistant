@@ -8,8 +8,8 @@ primary_region = 'ams'
   JOB_ASSISTANT_HOST = "0.0.0.0"
   JOB_ASSISTANT_DATABASE_URL = "sqlite:////data/job_assistant.db"
   JOB_ASSISTANT_PROFILE_PATH = "/data/user_profile.json"
-  # Remplace cette valeur plus tard par l’origine réelle du frontend déployé
-  JOB_ASSISTANT_CORS_ALLOW_ORIGINS = "http://localhost:5173"
+  # Local dev + deployed frontend (must match browser origin exactly, incl. https)
+  JOB_ASSISTANT_CORS_ALLOW_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://frontend-crimson-fire-3773.fly.dev"
 
 [http_service]
   internal_port = 8000
