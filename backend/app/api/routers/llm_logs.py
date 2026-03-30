@@ -1,9 +1,10 @@
 from datetime import timezone
 from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 
+from app.core.security import require_api_key
 from app.db.models import LlmCallLog
 from app.db.session import get_db_session
 from app.schemas.llm_log import LlmCallLogItem, LlmCallLogListResponse
@@ -12,7 +13,7 @@ from app.services.llm_pricing import estimate_token_cost_usd
 router = APIRouter(prefix="/llm-logs", tags=["llm-logs"])
 
 
-@router.get("/", response_model=LlmCallLogListResponse)
+@router.get("/", response_model=LlmCallLogListResponse, dependencies=[Depends(require_api_key)])
 def list_llm_logs(
     limit: int = Query(default=200, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),

@@ -24,16 +24,48 @@ class JobDecisionV1(BaseModel):
     clarifying_questions: list[str] = Field(default_factory=list, max_length=3)
 
 
+class JobDimensionAssessment(BaseModel):
+    strategic_fit: Literal["high", "medium", "low"]
+    financial_fit: Literal["upgrade", "neutral", "downgrade", "unknown"]
+    lifestyle_fit: Literal["compatible", "constrained", "incompatible", "unknown"]
+    key_drivers: list[str] = Field(default_factory=list, max_length=4)
+    key_tradeoffs: list[str] = Field(default_factory=list, max_length=4)
+    key_unknowns: list[str] = Field(default_factory=list, max_length=4)
+
+
+class CompensationAssessmentV2(BaseModel):
+    clarity: Literal["unknown", "partial", "clear"]
+    vs_user_baseline: Literal["below", "in_line", "above", "unknown"]
+    summary: str
+    caveats: str | None = None
+
+
+class CareerPositioningV2(BaseModel):
+    narrative: str
+    positioning_tags: list[str] = Field(default_factory=list, max_length=6)
+
+
+class DecisionAnalysisV2(BaseModel):
+    compensation_assessment: CompensationAssessmentV2
+    tradeoffs: list[str] = Field(default_factory=list, max_length=5)
+    career_positioning: CareerPositioningV2
+    confidence: Literal["low", "medium", "high"]
+
+
 class JobAnalysis(BaseModel):
     normalized_title: str | None = None
     normalized_company: str | None = None
     normalized_location: str | None = None
+    work_arrangement: Literal["remote", "hybrid", "onsite", "unknown"] = "unknown"
+    compensation_display: str | None = None
     seniority: str = "unknown"
     keywords: list[str] = Field(default_factory=list)
     summary: str
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None = None
     fit_rationale: str = ""
     decision: JobDecisionV1 | None = None
+    dimension_assessment: JobDimensionAssessment | None = None
+    decision_v2: DecisionAnalysisV2 | None = None
 
 
 class Job(BaseModel):

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.config import get_settings
+from app.core.security import require_api_key
 from app.schemas.extract_fields import (
     ExtractFieldsRequest,
     ExtractFieldsResponse,
@@ -14,7 +15,7 @@ from app.services.job_storage import get_job_storage
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-@router.post("/", response_model=Job, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=Job, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_api_key)])
 def create_job(payload: JobCreateRequest) -> Job:
     storage = get_job_storage()
     return storage.create_job(payload)
@@ -27,7 +28,7 @@ def list_jobs() -> JobListResponse:
     return JobListResponse(count=len(jobs), jobs=jobs)
 
 
-@router.post("/extract-fields", response_model=ExtractFieldsResponse)
+@router.post("/extract-fields", response_model=ExtractFieldsResponse, dependencies=[Depends(require_api_key)])
 def extract_job_fields(payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
     service = get_job_field_extraction_service()
     return service.extract_fields(payload)

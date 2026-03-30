@@ -1,6 +1,8 @@
 import re
 from collections.abc import Iterable
 
+from app.services.job_signal_extraction import derive_work_arrangement, extract_compensation_display
+
 
 SENIORITY_HINTS = {
     "principal": "principal",
@@ -31,6 +33,8 @@ def analyze_job_posting(payload: dict[str, str | None]) -> dict[str, object]:
     company = _normalize_text(payload.get("company"))
     location = _normalize_text(payload.get("location"))
     description = _normalize_text(payload.get("description")) or ""
+    work_arrangement = derive_work_arrangement(title, location, description)
+    compensation_display = extract_compensation_display(description)
     seniority = _detect_seniority((title, description))
     keywords = _extract_keywords(description)
 
@@ -42,6 +46,8 @@ def analyze_job_posting(payload: dict[str, str | None]) -> dict[str, object]:
         "normalized_title": title,
         "normalized_company": company,
         "normalized_location": location,
+        "work_arrangement": work_arrangement,
+        "compensation_display": compensation_display,
         "seniority": seniority,
         "keywords": keywords,
         "summary": summary,

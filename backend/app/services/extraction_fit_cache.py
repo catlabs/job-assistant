@@ -4,7 +4,7 @@ from functools import lru_cache
 from threading import Lock
 from typing import Literal
 
-from app.schemas.job import JobDecisionV1
+from app.schemas.job import DecisionAnalysisV2, JobDecisionV1, JobDimensionAssessment
 
 
 FIT_TTL_MINUTES = 30
@@ -17,6 +17,9 @@ class ExtractionFitCacheEntry:
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None
     fit_rationale: str
     decision: JobDecisionV1 | None
+    dimension_assessment: JobDimensionAssessment | None
+    decision_v2: DecisionAnalysisV2 | None
+    profile_context_fingerprint: str
     expires_at: datetime
 
 
@@ -33,6 +36,9 @@ class ExtractionFitCache:
         fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None,
         fit_rationale: str,
         decision: JobDecisionV1 | None,
+        dimension_assessment: JobDimensionAssessment | None,
+        decision_v2: DecisionAnalysisV2 | None,
+        profile_context_fingerprint: str,
     ) -> None:
         now = datetime.now(timezone.utc)
         entry = ExtractionFitCacheEntry(
@@ -41,6 +47,9 @@ class ExtractionFitCache:
             fit_classification=fit_classification,
             fit_rationale=fit_rationale,
             decision=decision,
+            dimension_assessment=dimension_assessment,
+            decision_v2=decision_v2,
+            profile_context_fingerprint=profile_context_fingerprint,
             expires_at=now + timedelta(minutes=FIT_TTL_MINUTES),
         )
         with self._lock:
@@ -48,7 +57,7 @@ class ExtractionFitCache:
             self._entries[extraction_ref] = entry
 
     def get_matching(
-        self, *, extraction_ref: str, text_fingerprint: str
+        self, *, extraction_ref: str, text_fingerprint: str, profile_context_fingerprint: str
     ) -> ExtractionFitCacheEntry | None:
         now = datetime.now(timezone.utc)
         with self._lock:
@@ -57,6 +66,8 @@ class ExtractionFitCache:
             if entry is None:
                 return None
             if entry.text_fingerprint != text_fingerprint:
+                return None
+            if entry.profile_context_fingerprint != profile_context_fingerprint:
                 return None
             return entry
 

@@ -9,6 +9,7 @@ from app.schemas.job import Job, JobAnalysis, JobCreateRequest
 from app.services.extraction_fit_cache import get_extraction_fit_cache
 from app.services.job_analysis import analyze_job_posting
 from app.services.job_fit_assessment import get_job_fit_assessment_service
+from app.services.job_signal_extraction import derive_work_arrangement, extract_compensation_display
 from app.services.llm_call_logging import bind_extraction_logs_to_job
 from app.services.text_fingerprint import fingerprint_text
 
@@ -83,7 +84,16 @@ class JobStorage:
         if not record.analysis_json:
             return JobAnalysis(summary="Analysis unavailable.")
 
-        return JobAnalysis.model_validate_json(record.analysis_json)
+        analysis = JobAnalysis.model_validate_json(record.analysis_json)
+        if analysis.work_arrangement == "unknown":
+            analysis.work_arrangement = derive_work_arrangement(
+                record.title,
+                record.location,
+                record.description,
+            )
+        if not analysis.compensation_display:
+            analysis.compensation_display = extract_compensation_display(record.description)
+        return analysis
 
     def _build_analysis(
         self,
@@ -110,17 +120,23 @@ class JobStorage:
         )
 
         cached_fit = None
+        profile_context_fingerprint = (
+            get_job_fit_assessment_service().get_profile_context_fingerprint() if extraction_ref else ""
+        )
         if extraction_ref:
             # Reuse fit from extraction only when ref and description fingerprint still match.
             cached_fit = get_extraction_fit_cache().get_matching(
                 extraction_ref=extraction_ref,
                 text_fingerprint=fingerprint_text(description),
+                profile_context_fingerprint=profile_context_fingerprint,
             )
 
         if cached_fit is not None:
             analysis.fit_classification = cached_fit.fit_classification
             analysis.fit_rationale = cached_fit.fit_rationale
             analysis.decision = cached_fit.decision
+            analysis.dimension_assessment = cached_fit.dimension_assessment
+            analysis.decision_v2 = cached_fit.decision_v2
             return analysis
 
         fit_result = get_job_fit_assessment_service().assess_job_fit(
@@ -133,6 +149,8 @@ class JobStorage:
         analysis.fit_classification = fit_result.fit_classification
         analysis.fit_rationale = fit_result.fit_rationale
         analysis.decision = fit_result.decision
+        analysis.dimension_assessment = fit_result.dimension_assessment
+        analysis.decision_v2 = fit_result.decision_v2
         return analysis
 
 

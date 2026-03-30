@@ -27,11 +27,11 @@ def _migrate_sqlite_jobs_table() -> None:
         return
 
     columns = {column["name"] for column in inspector.get_columns("jobs")}
-    if "analysis_json" in columns:
-        return
-
     with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE jobs ADD COLUMN analysis_json TEXT"))
+        if "analysis_json" not in columns:
+            connection.execute(text("ALTER TABLE jobs ADD COLUMN analysis_json TEXT"))
+        if "company_id" not in columns:
+            connection.execute(text("ALTER TABLE jobs ADD COLUMN company_id VARCHAR(36)"))
 
 
 @contextmanager

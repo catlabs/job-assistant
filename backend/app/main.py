@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers.ask import router as ask_router
+from app.api.routers.companies import router as companies_router
 from app.api.routers.health import router as health_router
 from app.api.routers.jobs import router as jobs_router
 from app.api.routers.llm_logs import router as llm_logs_router
@@ -39,10 +40,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ],
+        allow_origins=settings.cors_allow_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -57,6 +55,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(jobs_router)
+    app.include_router(companies_router)
     app.include_router(ask_router)
     app.include_router(llm_logs_router)
     app.include_router(profile_router)

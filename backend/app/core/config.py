@@ -1,10 +1,15 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_CORS_ALLOW_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 
 class Settings(BaseSettings):
@@ -14,9 +19,13 @@ class Settings(BaseSettings):
     host: str = Field(default="127.0.0.1")
     port: int = Field(default=8000)
     database_url: str = Field(default="sqlite:///./job_assistant.db")
+    api_key: SecretStr | None = Field(default=None)
     openai_api_key: SecretStr | None = Field(default=None)
     openai_model: str = Field(default="gpt-4.1-mini")
     openai_timeout_seconds: float = Field(default=20.0, gt=0)
+    cors_allow_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(DEFAULT_CORS_ALLOW_ORIGINS)
+    )
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -25,6 +34,22 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @field_validator("cors_allow_origins", mode="before")
+    @classmethod
+    def parse_cors_allow_origins(cls, value: object) -> list[str]:
+        if value is None:
+            return list(DEFAULT_CORS_ALLOW_ORIGINS)
+
+        if isinstance(value, str):
+            origins = [item.strip() for item in value.split(",") if item.strip()]
+            return origins or list(DEFAULT_CORS_ALLOW_ORIGINS)
+
+        if isinstance(value, list):
+            origins = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+            return origins or list(DEFAULT_CORS_ALLOW_ORIGINS)
+
+        raise TypeError("cors_allow_origins must be a comma-separated string or list of origins")
 
 
 @lru_cache

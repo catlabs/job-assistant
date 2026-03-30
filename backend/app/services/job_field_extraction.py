@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse, ExtractedJobFields
 from app.services.extraction_fit_cache import get_extraction_fit_cache
 from app.services.job_fit_assessment import get_job_fit_assessment_service
+from app.services.job_signal_extraction import derive_work_arrangement, extract_compensation_display
 from app.services.llm_call_logging import _extract_usage_tokens, log_llm_call
 from app.services.llm_operations import LlmOperation
 from app.services.text_fingerprint import fingerprint_text
@@ -23,6 +24,8 @@ Rules:
 - title: actual job title, else empty string
 - company: company name only, else empty string
 - location: most precise location available, else empty string
+- work_arrangement: exactly one of remote, hybrid, onsite, unknown
+- compensation_display: compact display string like "$120,000 - $140,000 / year" when clearly stated, else empty string
 - seniority: exactly one of Intern, Junior, Mid, Senior, Lead, Staff, or empty string
 - summary: 1 to 3 concise factual sentences, else empty string
 - keywords: up to 8 normalized relevant items, else []
@@ -87,6 +90,14 @@ class JobFieldExtractionService:
                     detail="LLM did not return structured extraction output.",
                 )
             extracted = ExtractedJobFields.model_validate(parsed)
+            if extracted.work_arrangement == "unknown":
+                extracted.work_arrangement = derive_work_arrangement(
+                    extracted.title,
+                    extracted.location,
+                    payload.raw_text,
+                )
+            if not extracted.compensation_display:
+                extracted.compensation_display = extract_compensation_display(payload.raw_text) or ""
             prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(completion.usage)
             log_llm_call(
                 operation=LlmOperation.EXTRACT_FIELDS,
@@ -151,6 +162,9 @@ class JobFieldExtractionService:
             fit_classification=fit_result.fit_classification,
             fit_rationale=fit_result.fit_rationale,
             decision=fit_result.decision,
+            dimension_assessment=fit_result.dimension_assessment,
+            decision_v2=fit_result.decision_v2,
+            profile_context_fingerprint=fit_result.profile_context_fingerprint,
         )
 
         return ExtractFieldsResponse(
@@ -159,6 +173,8 @@ class JobFieldExtractionService:
             fit_classification=fit_result.fit_classification,
             fit_rationale=fit_result.fit_rationale,
             decision=fit_result.decision,
+            dimension_assessment=fit_result.dimension_assessment,
+            decision_v2=fit_result.decision_v2,
             **extracted.model_dump(),
         )
 

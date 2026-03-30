@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.schemas.job import JobDecisionV1
+from app.schemas.job import DecisionAnalysisV2, JobDecisionV1, JobDimensionAssessment
 from app.services.extraction_models import get_allowed_extraction_models
 
 SENIORITY_LEVELS: tuple[str, ...] = ("Intern", "Junior", "Mid", "Senior", "Lead", "Staff", "")
@@ -56,11 +56,13 @@ class ExtractedJobFields(BaseModel):
     title: str = ""
     company: str = ""
     location: str = ""
+    work_arrangement: Literal["remote", "hybrid", "onsite", "unknown"] = "unknown"
+    compensation_display: str = ""
     seniority: Literal["Intern", "Junior", "Mid", "Senior", "Lead", "Staff", ""] = ""
     summary: str = ""
     keywords: list[str] = Field(default_factory=list, max_length=8)
 
-    @field_validator("title", "company", "location", "summary")
+    @field_validator("title", "company", "location", "compensation_display", "summary")
     @classmethod
     def normalize_text_fields(cls, value: str) -> str:
         return _collapse(value)
@@ -86,3 +88,5 @@ class ExtractFieldsResponse(ExtractedJobFields):
     fit_classification: Literal["strong_fit", "acceptable_intermediate", "misaligned"] | None = None
     fit_rationale: str = ""
     decision: JobDecisionV1 | None = None
+    dimension_assessment: JobDimensionAssessment | None = None
+    decision_v2: DecisionAnalysisV2 | None = None

@@ -4,20 +4,23 @@ import json
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from openai import APIConnectionError, APIError, APITimeoutError, OpenAI
 
 from app.core.config import get_settings
+from app.core.security import require_api_key
 from app.schemas.profile import ProfileExplainResponse, ProfileResponse, ProfileUpdateRequest
 from app.services.llm_call_logging import _extract_usage_tokens, log_llm_call
 from app.services.llm_operations import LlmOperation
 from app.services.profile_assessment_context import build_profile_assessment_context
-from app.services.profile_loader import load_user_profile, save_user_profile
+from app.services.profile_loader import load_user_profile, merge_user_profile, save_user_profile
 from app.services.profile_rules import (
     EXPECTED_FIT_LABELS_ORDER,
     MAX_DECISION_DIMENSIONS,
     MAX_INTERPRETATION_RULES,
+    MAX_NON_NEGOTIABLES,
     MAX_SIGNALS_PER_BUCKET,
+    sanitize_location_preferences,
     sanitize_string_list,
 )
 
@@ -42,6 +45,19 @@ def _build_profile_response(profile: dict[str, Any]) -> ProfileResponse:
         else {}
     )
     summary = profile.get("profile_summary")
+    financial_baseline = (
+        profile.get("financial_baseline_for_job_assistant")
+        if isinstance(profile.get("financial_baseline_for_job_assistant"), dict)
+        else None
+    )
+    strategic_preferences = (
+        profile.get("strategic_preferences_for_job_assistant")
+        if isinstance(profile.get("strategic_preferences_for_job_assistant"), dict)
+        else None
+    )
+    location_preferences = sanitize_location_preferences(
+        profile.get("location_preferences_for_job_assistant")
+    )
 
     return ProfileResponse(
         profile_summary=summary.strip() if isinstance(summary, str) and summary.strip() else None,
@@ -70,6 +86,34 @@ def _build_profile_response(profile: dict[str, Any]) -> ProfileResponse:
                 max_items=MAX_DECISION_DIMENSIONS,
             ),
         },
+        financial_baseline_for_job_assistant=(
+            {
+                "amount": financial_baseline.get("amount"),
+                "currency": financial_baseline.get("currency"),
+                "basis": financial_baseline.get("basis"),
+                "hours_per_week": financial_baseline.get("hours_per_week"),
+                "days_per_year": financial_baseline.get("days_per_year"),
+            }
+            if financial_baseline
+            and isinstance(financial_baseline.get("amount"), (float, int))
+            and isinstance(financial_baseline.get("currency"), str)
+            and isinstance(financial_baseline.get("basis"), str)
+            else None
+        ),
+        strategic_preferences_for_job_assistant=(
+            {
+                "risk_tolerance": strategic_preferences.get("risk_tolerance"),
+                "time_horizon": strategic_preferences.get("time_horizon"),
+                "career_stage": strategic_preferences.get("career_stage"),
+                "non_negotiables": sanitize_string_list(
+                    strategic_preferences.get("non_negotiables"),
+                    max_items=MAX_NON_NEGOTIABLES,
+                ),
+            }
+            if strategic_preferences
+            else None
+        ),
+        location_preferences_for_job_assistant=location_preferences,
         fit_analysis_enabled=build_profile_assessment_context(profile) is not None,
         explanation=_extract_explanation(profile),
     )
@@ -201,29 +245,26 @@ def get_profile() -> ProfileResponse:
     return _build_profile_response(profile)
 
 
-@router.put("/", response_model=ProfileResponse)
+@router.put("/", response_model=ProfileResponse, dependencies=[Depends(require_api_key)])
 def update_profile(payload: ProfileUpdateRequest) -> ProfileResponse:
     existing = load_user_profile()
-    normalized = payload.model_dump(exclude_none=True)
-    existing_explanation = _extract_explanation(existing)
-    if existing_explanation:
-        normalized["explanation"] = existing_explanation
+    merged_profile = merge_user_profile(existing, payload.model_dump(exclude_unset=True))
 
-    if build_profile_assessment_context(normalized) is None:
+    if build_profile_assessment_context(merged_profile) is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Saved profile must remain usable for fit analysis.",
         )
 
-    save_user_profile(normalized)
-    explain_result = _generate_profile_explanation(normalized, fail_on_error=False)
+    save_user_profile(merged_profile)
+    explain_result = _generate_profile_explanation(merged_profile, fail_on_error=False)
     if explain_result.explanation:
-        normalized["explanation"] = explain_result.explanation
-        save_user_profile(normalized)
-    return _build_profile_response(normalized)
+        merged_profile["explanation"] = explain_result.explanation
+        save_user_profile(merged_profile)
+    return _build_profile_response(merged_profile)
 
 
-@router.post("/explain", response_model=ProfileExplainResponse)
+@router.post("/explain", response_model=ProfileExplainResponse, dependencies=[Depends(require_api_key)])
 def explain_profile() -> ProfileExplainResponse:
     profile = load_user_profile()
     result = _generate_profile_explanation(profile, fail_on_error=True)

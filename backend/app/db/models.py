@@ -22,6 +22,7 @@ class JobRecord(Base):
     __tablename__ = "jobs"
 
     id = mapped_column(String(36), primary_key=True)
+    company_id = mapped_column(String(36), nullable=True, index=True)
     title = mapped_column(String(255), nullable=True)
     company = mapped_column(String(255), nullable=True)
     location = mapped_column(String(255), nullable=True)
@@ -46,3 +47,21 @@ class LlmCallLog(Base):
     job_id = mapped_column(String(36), nullable=True, index=True)
     error_message = mapped_column(String(500), nullable=True)
     extra_json = mapped_column(Text, nullable=True)
+
+
+class CompanyRecord(Base):
+    __tablename__ = "companies"
+
+    id = mapped_column(String(36), primary_key=True)
+    created_at = mapped_column(DateTime(timezone=True), nullable=False, index=True, default=_utc_now)
+    updated_at = mapped_column(DateTime(timezone=True), nullable=False, index=True, default=_utc_now)
+    canonical_url = mapped_column(String(2048), nullable=False)
+    normalized_host = mapped_column(String(255), nullable=False, index=True)
+    source_url = mapped_column(String(2048), nullable=False)
+    ingest_status = mapped_column(String(32), nullable=False, index=True)
+    summary = mapped_column(Text, nullable=True)
+    enrichment_json = mapped_column(Text, nullable=True)
+    pages_json = mapped_column(Text, nullable=False)
+    content_fingerprint = mapped_column(String(128), nullable=True)
+    fetched_at = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    schema_version = mapped_column(Integer, nullable=False, default=1)
