@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     host: str = Field(default="127.0.0.1")
     port: int = Field(default=8000)
     database_url: str = Field(default="sqlite:///./job_assistant.db")
+    profile_path: Path | None = Field(default=None)
     api_key: SecretStr | None = Field(default=None)
     openai_api_key: SecretStr | None = Field(default=None)
     openai_model: str = Field(default="gpt-4.1-mini")

@@ -3,6 +3,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from app.core.config import get_settings
+
 
 DEFAULT_PROFILE_PATH = Path(__file__).resolve().parents[3] / "user_profile.json"
 PROFILE_SECTION_FIELDS: dict[str, tuple[str, ...]] = {
@@ -48,8 +50,16 @@ LOCATION_PREFERENCE_SECTION_FIELDS: dict[str, tuple[str, ...]] = {
 }
 
 
+def _get_profile_path(path: Path | None = None) -> Path:
+    if path is not None:
+        return path
+
+    settings_profile_path = get_settings().profile_path
+    return settings_profile_path or DEFAULT_PROFILE_PATH
+
+
 def load_user_profile(path: Path | None = None) -> dict[str, Any]:
-    profile_path = path or DEFAULT_PROFILE_PATH
+    profile_path = _get_profile_path(path)
     if not profile_path.exists():
         return {}
 
@@ -62,7 +72,7 @@ def load_user_profile(path: Path | None = None) -> dict[str, Any]:
 
 
 def save_user_profile(profile: dict[str, Any], path: Path | None = None) -> None:
-    profile_path = path or DEFAULT_PROFILE_PATH
+    profile_path = _get_profile_path(path)
     profile_path.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.NamedTemporaryFile(

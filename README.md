@@ -9,7 +9,7 @@ Personal project: a small **FastAPI** backend to collect job postings, run **lig
 - **Job fit + decision analysis (optional)**: newly saved jobs may include AI-generated `fit_classification`, `fit_rationale`, and `decision` fields in `analysis_json` when `JOB_ASSISTANT_OPENAI_API_KEY` and `user_profile.json` are both configured
 - **Profile page + API (V1)**: view/edit the local profile used by fit analysis (`/profile` in UI, `/profile/*` API)
 - **Job extraction**: stateless LLM extraction from pasted posting text (`POST /jobs/extract-fields`), no persistence
-- **Ask**: stub Q&A over stored jobs (optional use of `user_profile.json` at the repo root)
+- **Ask**: stub Q&A over stored jobs (optional use of `user_profile.json`)
 - **Optional shared-key protection**: protect expensive or sensitive backend routes with a single deploy-time API key
 - **SQLite** persistence via **SQLAlchemy** (no auth, minimal surface area)
 
@@ -93,7 +93,7 @@ This project deploys as two separate pieces:
 
 - `frontend/` builds into static files under `frontend/dist/`
 - `backend/` runs as an ASGI app with entrypoint `app.main:app`
-- The backend host must keep both the SQLite file and the repo-root `user_profile.json` on persistent storage if you want those features to survive restarts/redeploys
+- The backend host must keep both the SQLite file and the profile JSON file on persistent storage if you want those features to survive restarts/redeploys
 
 ### 1. Deploy the backend
 
@@ -110,6 +110,7 @@ Update `backend/.env` for the target environment:
 
 - `JOB_ASSISTANT_DEBUG=false`
 - `JOB_ASSISTANT_DATABASE_URL` should use a persistent absolute path in production, for example `sqlite:////var/lib/job-assistant/job_assistant.db`
+- `JOB_ASSISTANT_PROFILE_PATH` is optional locally, but in production should point to a persistent writable file, for example `/data/user_profile.json` on Fly.io
 - `JOB_ASSISTANT_CORS_ALLOW_ORIGINS` must include the deployed frontend origin exactly, for example `https://jobs.example.com`
 - `JOB_ASSISTANT_API_KEY` is optional but recommended if the backend is reachable from the internet
 - `JOB_ASSISTANT_OPENAI_API_KEY` is required for LLM-backed features such as `/jobs/extract-fields` and profile explanation
@@ -154,16 +155,22 @@ Important frontend behavior:
 
 - turn debug off
 - use an explicit persistent SQLite file path
-- use a persistent writable location for the repo-root `user_profile.json`
+- use a persistent writable location for the profile JSON file
 - set CORS to the real frontend origin instead of localhost defaults
 - decide whether the backend will be local-only behind a reverse proxy or directly reachable on the network
 - set `JOB_ASSISTANT_API_KEY` if the backend is internet-exposed and you want protected routes gated
+
+For Fly.io or a similar single-host deployment with a mounted volume, keep both files on the volume, for example:
+
+- `JOB_ASSISTANT_DATABASE_URL=sqlite:////data/job_assistant.db`
+- `JOB_ASSISTANT_PROFILE_PATH=/data/user_profile.json`
 
 ## Configuration
 
 Environment variables use the prefix `JOB_ASSISTANT_` (see `backend/app/core/config.py`). The backend loads its `.env` file from `backend/.env`.
 
 - **`JOB_ASSISTANT_DATABASE_URL`** — default `sqlite:///./job_assistant.db`; use an absolute persistent path in production rather than relying on the current working directory
+- **`JOB_ASSISTANT_PROFILE_PATH`** — optional; when unset, the backend keeps using the repo-root `user_profile.json` for local development, but in production it should point to persistent storage such as `/data/user_profile.json`
 - **`JOB_ASSISTANT_API_KEY`** — optional shared secret for protected mode; when set, protected routes accept either `Authorization: Bearer <token>` or `X-API-Key: <token>`
 - **`JOB_ASSISTANT_CORS_ALLOW_ORIGINS`** — comma-separated CORS origin list; set this to the real deployed frontend origin(s) in production
 - **`JOB_ASSISTANT_OPENAI_API_KEY`** — required for LLM-backed features such as `POST /jobs/extract-fields`
@@ -183,8 +190,8 @@ Do **not** commit `.env` or your local `.db` if they contain personal data.
 Do **not** commit your local `user_profile.json`; use `user_profile.example.json` as a starting template.
 
 `/profile` currently maps to a single local `user_profile.json` on the backend host.
-That file is stored outside `backend/`, at the repository root next to `backend/`.
-For a manual deployment, make sure that location stays writable and persistent across restarts/redeploys.
+By default that file is stored outside `backend/`, at the repository root next to `backend/`.
+For deployment, set `JOB_ASSISTANT_PROFILE_PATH` to a persistent writable file path so it survives restarts/redeploys.
 A future multi-profile storage layer can keep the same API shape and swap the persistence implementation.
 
 ## API overview
@@ -214,7 +221,7 @@ Read-only routes such as health checks, job reads, and profile reads remain unau
 ## Current limitations
 
 - SQLite is appropriate for a single-host first deployment, but not for multi-instance writes, shared network filesystems, or high-concurrency production traffic.
-- `user_profile.json` is a single file on the backend host and assumes the current repository layout; deploying only `backend/` without the repo root will break that persistence expectation.
+- `user_profile.json` is a single file on the backend host; if `JOB_ASSISTANT_PROFILE_PATH` is unset it still assumes the current repository layout.
 - `JOB_ASSISTANT_API_KEY` protects selected routes only; it is not a full user authentication system.
 - `VITE_API_KEY` is visible in the browser bundle and should not be treated as a secret.
 - There is no automated deployment, managed secrets workflow, backup policy, or database migration pipeline yet.
