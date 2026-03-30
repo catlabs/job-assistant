@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import FitBadge from '../components/FitBadge'
+import { apiFetch, getApiBaseUrl, getJsonHeaders } from '../lib/api'
 import {
-  API_BASE_URL,
   emptyFields,
   ExtractFieldsResponse,
   getApiErrorMessage,
@@ -20,6 +21,7 @@ type EditableExtractField =
   | 'keywords'
 
 function ExtractPage() {
+  const navigate = useNavigate()
   const [rawText, setRawText] = useState('')
   const [fields, setFields] = useState<ExtractFieldsResponse | null>(null)
   const [models, setModels] = useState<string[]>([])
@@ -36,12 +38,14 @@ function ExtractPage() {
     let cancelled = false
 
     const loadExtractionModels = async () => {
-      if (!API_BASE_URL) {
+      try {
+        getApiBaseUrl()
+      } catch {
         return
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/jobs/extraction-models`)
+        const response = await apiFetch('/jobs/extraction-models')
         const body = await response.json().catch(() => null)
 
         if (!response.ok) {
@@ -94,8 +98,10 @@ function ExtractPage() {
       return
     }
 
-    if (!API_BASE_URL) {
-      setError('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+    try {
+      getApiBaseUrl()
+    } catch (baseUrlError) {
+      setError(baseUrlError instanceof Error ? baseUrlError.message : 'Missing VITE_API_BASE_URL. Add it to frontend/.env.')
       return
     }
 
@@ -107,11 +113,11 @@ function ExtractPage() {
         requestBody.model = selectedModel
       }
 
-      const response = await fetch(`${API_BASE_URL}/jobs/extract-fields`, {
+      const response = await apiFetch('/jobs/extract-fields', {
         method: 'POST',
-        headers: {
+        headers: getJsonHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(requestBody),
       })
 
@@ -162,8 +168,10 @@ function ExtractPage() {
       return
     }
 
-    if (!API_BASE_URL) {
-      setSaveError('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+    try {
+      getApiBaseUrl()
+    } catch (baseUrlError) {
+      setSaveError(baseUrlError instanceof Error ? baseUrlError.message : 'Missing VITE_API_BASE_URL. Add it to frontend/.env.')
       return
     }
 
@@ -191,11 +199,11 @@ function ExtractPage() {
     setSaveLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/jobs/`, {
+      const response = await apiFetch('/jobs/', {
         method: 'POST',
-        headers: {
+        headers: getJsonHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(payload),
       })
 
@@ -207,8 +215,14 @@ function ExtractPage() {
       }
 
       const jobId = (responseBody as { id?: string | number } | null)?.id
-      setSavedJobId(jobId === undefined || jobId === null ? '' : String(jobId))
+      if (jobId === undefined || jobId === null) {
+        throw new Error('Job saved but no job id was returned.')
+      }
+
+      const createdJobId = String(jobId)
+      setSavedJobId(createdJobId)
       setSaveSuccess('Job saved successfully.')
+      navigate(`/jobs/${createdJobId}`)
     } catch (saveRequestError) {
       if (saveRequestError instanceof TypeError) {
         setSaveError('Network error while saving. Please check your connection and try again.')

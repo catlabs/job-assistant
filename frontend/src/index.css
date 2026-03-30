@@ -8,6 +8,8 @@
 @import "./styles/components/dialog.css";
 @import "./styles/pages/extract.css";
 @import "./styles/pages/jobs.css";
+@import "./styles/pages/companies.css";
 @import "./styles/pages/profile.css";
 @import "./styles/pages/job-detail.css";
+@import "./styles/pages/company-detail.css";
 @import "./styles/pages/llm-usage.css";

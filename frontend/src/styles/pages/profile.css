@@ -150,6 +150,12 @@
   gap: var(--space-3);
 }
 
+.profile-location-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .profile-inline-meta {
   display: flex;
   flex-wrap: wrap;
@@ -200,6 +206,32 @@
 
 .profile-list-display li {
   line-height: 1.5;
+}
+
+.profile-fact-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.profile-fact-row {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.profile-fact-row dt {
+  color: #666666;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.profile-fact-row dd {
+  margin: 0;
+  color: var(--color-text-body);
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .profile-inline-textarea {

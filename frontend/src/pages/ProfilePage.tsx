@@ -3,7 +3,7 @@ import { type TextareaHTMLAttributes, useCallback, useEffect, useLayoutEffect, u
 import Badge from '../components/Badge'
 import { getButtonClassName } from '../components/Button'
 import { usePageHeader } from '../components/PageHeaderContext'
-import { ProfileUpdatePayload, fetchProfile, ProfileResponse, updateProfile } from '../lib/jobs'
+import { ProfileLocationPreferences, ProfileResponse, ProfileUpdatePayload, fetchProfile, updateProfile } from '../lib/jobs'
 
 type EditableSection =
   | 'summary'
@@ -34,6 +34,11 @@ const resizeTextarea = (textarea: HTMLTextAreaElement | null) => {
 
 type AutosizeTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   minRows?: number
+}
+
+type ProfileFact = {
+  label: string
+  value: string
 }
 
 function AutosizeTextarea({ className = '', minRows = 3, onChange, value, ...props }: AutosizeTextareaProps) {
@@ -82,6 +87,91 @@ function ProfileListDisplay({ value, emptyMessage }: { value: string; emptyMessa
   )
 }
 
+function ProfileFactDisplay({ facts, emptyMessage }: { facts: ProfileFact[]; emptyMessage: string }) {
+  if (facts.length === 0) {
+    return <p className="muted">{emptyMessage}</p>
+  }
+
+  return (
+    <dl className="profile-fact-list">
+      {facts.map((fact) => (
+        <div key={`${fact.label}-${fact.value}`} className="profile-fact-row">
+          <dt>{fact.label}</dt>
+          <dd>{fact.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+const formatCountLabel = (count: number, unit: string) => `${count} ${unit}${count === 1 ? '' : 's'}`
+
+const buildBrusselsFacts = (preferences?: ProfileLocationPreferences['brussels'] | null): ProfileFact[] => {
+  const facts: ProfileFact[] = []
+
+  if (typeof preferences?.max_onsite_days_per_week === 'number') {
+    facts.push({
+      label: 'Max on-site',
+      value: `${formatCountLabel(preferences.max_onsite_days_per_week, 'day')}/week`,
+    })
+  }
+
+  if (preferences?.notes?.trim()) {
+    facts.push({ label: 'Notes', value: preferences.notes.trim() })
+  }
+
+  return facts
+}
+
+const buildNearbyCitiesFacts = (preferences?: ProfileLocationPreferences['nearby_cities'] | null): ProfileFact[] => {
+  const facts: ProfileFact[] = []
+
+  if (typeof preferences?.max_onsite_days_per_period === 'number') {
+    facts.push({
+      label: 'Max on-site',
+      value:
+        typeof preferences.period_weeks === 'number'
+          ? `${formatCountLabel(preferences.max_onsite_days_per_period, 'day')} / ${formatCountLabel(preferences.period_weeks, 'week')}`
+          : `${formatCountLabel(preferences.max_onsite_days_per_period, 'day')} / period`,
+    })
+  } else if (typeof preferences?.period_weeks === 'number') {
+    facts.push({
+      label: 'Period length',
+      value: formatCountLabel(preferences.period_weeks, 'week'),
+    })
+  }
+
+  if (preferences?.notes?.trim()) {
+    facts.push({ label: 'Notes', value: preferences.notes.trim() })
+  }
+
+  return facts
+}
+
+const buildFarLocationsFacts = (preferences?: ProfileLocationPreferences['far_locations'] | null): ProfileFact[] => {
+  const facts: ProfileFact[] = []
+
+  if (typeof preferences?.remote_required === 'boolean') {
+    facts.push({
+      label: 'Remote required',
+      value: preferences.remote_required ? 'Yes' : 'No',
+    })
+  }
+
+  if (typeof preferences?.max_travel_days_per_month === 'number') {
+    facts.push({
+      label: 'Travel',
+      value: `${formatCountLabel(preferences.max_travel_days_per_month, 'day')}/month`,
+    })
+  }
+
+  if (preferences?.notes?.trim()) {
+    facts.push({ label: 'Notes', value: preferences.notes.trim() })
+  }
+
+  return facts
+}
+
 const buildProfilePayload = (values: {
   profileSummary: string
   strongFitSignalsText: string
@@ -128,6 +218,7 @@ function ProfilePage() {
   const [interpretationRulesText, setInterpretationRulesText] = useState('')
   const [decisionDimensionsText, setDecisionDimensionsText] = useState('')
   const [classificationLabels, setClassificationLabels] = useState<string[]>([])
+  const [locationPreferences, setLocationPreferences] = useState<ProfileLocationPreferences | null>(null)
   const [lastSavedPayload, setLastSavedPayload] = useState<ProfileUpdatePayload | null>(null)
 
   const toggleSectionEditing = useCallback((section: EditableSection) => {
@@ -145,6 +236,7 @@ function ProfilePage() {
     setInterpretationRulesText(listToLines(profile.analysis_preferences_for_job_assistant?.interpretation_rules))
     setDecisionDimensionsText(listToLines(profile.analysis_preferences_for_job_assistant?.decision_dimensions))
     setClassificationLabels(profile.analysis_preferences_for_job_assistant?.classification_labels ?? [])
+    setLocationPreferences(profile.location_preferences_for_job_assistant ?? null)
     setExplanation(profile.explanation?.trim() ?? '')
     setLastSavedPayload(
       buildProfilePayload({
@@ -182,6 +274,17 @@ function ProfilePage() {
   }, [])
 
   const labelsText = useMemo(() => classificationLabels.join(', '), [classificationLabels])
+  const locationPreferenceSections = useMemo(
+    () =>
+      locationPreferences
+        ? [
+            { key: 'brussels', title: 'Brussels', facts: buildBrusselsFacts(locationPreferences.brussels) },
+            { key: 'nearby-cities', title: 'Nearby cities', facts: buildNearbyCitiesFacts(locationPreferences.nearby_cities) },
+            { key: 'far-locations', title: 'Far locations', facts: buildFarLocationsFacts(locationPreferences.far_locations) },
+          ]
+        : [],
+    [locationPreferences],
+  )
   const draftPayload = useMemo(
     () =>
       buildProfilePayload({
@@ -341,6 +444,28 @@ function ProfilePage() {
                     <h3 className="profile-section-title">Profile explanation</h3>
                     {explanation ? <div className="profile-display-copy">{explanation}</div> : <p className="muted">No explanation available yet.</p>}
                   </section>
+
+                  {locationPreferenceSections.length > 0 ? (
+                    <section className="profile-subsection">
+                      <div className="profile-section-header">
+                        <div className="profile-section-header-copy">
+                          <h3 className="profile-section-title">Location preferences</h3>
+                          <p className="muted">Currently read-only</p>
+                        </div>
+                      </div>
+
+                      <div className="profile-location-grid">
+                        {locationPreferenceSections.map((section) => (
+                          <div key={section.key} className="profile-field-card">
+                            <div className="profile-field-heading">
+                              <h4>{section.title}</h4>
+                            </div>
+                            <ProfileFactDisplay facts={section.facts} emptyMessage="Not specified" />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
                 </div>
 
                 <div className="profile-dashboard-column profile-dashboard-column-right profile-dashboard-column-scroll">

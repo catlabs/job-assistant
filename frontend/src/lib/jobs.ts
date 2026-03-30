@@ -1,8 +1,42 @@
+import { apiFetch, getApiBaseUrl, getJsonHeaders } from './api'
+
 export type JobDecisionV1 = {
   headline: string
   detail: string
   risk_flags: string[]
   clarifying_questions: string[]
+}
+
+export type DecisionAnalysisV2 = {
+  compensation_assessment: {
+    clarity: 'unknown' | 'partial' | 'clear'
+    vs_user_baseline: 'below' | 'in_line' | 'above' | 'unknown'
+    summary: string
+    caveats?: string | null
+  }
+  tradeoffs: string[]
+  career_positioning: {
+    narrative: string
+    positioning_tags: string[]
+  }
+  confidence: 'low' | 'medium' | 'high'
+}
+
+export type JobDimensionAssessment = {
+  strategic_fit: 'high' | 'medium' | 'low'
+  financial_fit: 'upgrade' | 'neutral' | 'downgrade' | 'unknown'
+  lifestyle_fit: 'compatible' | 'constrained' | 'incompatible' | 'unknown'
+  key_drivers: string[]
+  key_tradeoffs: string[]
+  key_unknowns: string[]
+}
+
+export type WorkArrangement = 'remote' | 'hybrid' | 'onsite' | 'unknown'
+
+export type JobWorkLocationSignals = {
+  remote_days_per_week?: number | null
+  onsite_days_per_week?: number | null
+  work_schedule_detail?: string | null
 }
 
 export type ExtractFieldsResponse = {
@@ -11,6 +45,11 @@ export type ExtractFieldsResponse = {
   location: string
   url: string
   source: string
+  work_arrangement: WorkArrangement
+  remote_days_per_week?: number | null
+  onsite_days_per_week?: number | null
+  work_schedule_detail?: string | null
+  compensation_display: string
   seniority: string
   summary: string
   keywords: string[]
@@ -19,6 +58,8 @@ export type ExtractFieldsResponse = {
   fit_classification?: 'strong_fit' | 'acceptable_intermediate' | 'misaligned' | null
   fit_rationale?: string
   decision?: JobDecisionV1 | null
+  dimension_assessment?: JobDimensionAssessment | null
+  decision_v2?: DecisionAnalysisV2 | null
 }
 
 export type JobCreatePayload = {
@@ -31,16 +72,43 @@ export type JobCreatePayload = {
   extraction_ref?: string
 }
 
-export type JobAnalysis = {
+export type JobAnalysis = JobWorkLocationSignals & {
   normalized_title?: string | null
   normalized_company?: string | null
   normalized_location?: string | null
+  work_arrangement?: WorkArrangement | null
+  compensation_display?: string | null
   seniority?: string | null
   keywords?: string[] | null
   summary?: string | null
   fit_classification?: 'strong_fit' | 'acceptable_intermediate' | 'misaligned' | null
   fit_rationale?: string | null
   decision?: JobDecisionV1 | null
+  dimension_assessment?: JobDimensionAssessment | null
+  decision_v2?: DecisionAnalysisV2 | null
+}
+
+export type ProfileLocationPreferencesBrussels = {
+  max_onsite_days_per_week?: number | null
+  notes?: string | null
+}
+
+export type ProfileLocationPreferencesNearbyCities = {
+  max_onsite_days_per_period?: number | null
+  period_weeks?: number | null
+  notes?: string | null
+}
+
+export type ProfileLocationPreferencesFarLocations = {
+  remote_required?: boolean | null
+  max_travel_days_per_month?: number | null
+  notes?: string | null
+}
+
+export type ProfileLocationPreferences = {
+  brussels?: ProfileLocationPreferencesBrussels | null
+  nearby_cities?: ProfileLocationPreferencesNearbyCities | null
+  far_locations?: ProfileLocationPreferencesFarLocations | null
 }
 
 export type Job = {
@@ -104,6 +172,20 @@ export type ProfileResponse = {
   profile_summary?: string | null
   job_fit_model: ProfileJobFitModel
   analysis_preferences_for_job_assistant: ProfileAnalysisPreferences
+  financial_baseline_for_job_assistant?: {
+    amount: number
+    currency: string
+    basis: 'annual_salary' | 'daily_rate' | 'hourly'
+    hours_per_week?: number | null
+    days_per_year?: number | null
+  } | null
+  strategic_preferences_for_job_assistant?: {
+    risk_tolerance?: 'low' | 'medium' | 'high' | null
+    time_horizon?: 'short' | 'mid' | 'long' | null
+    career_stage?: string | null
+    non_negotiables?: string[]
+  } | null
+  location_preferences_for_job_assistant?: ProfileLocationPreferences | null
   fit_analysis_enabled: boolean
   explanation?: string | null
 }
@@ -112,6 +194,20 @@ export type ProfileUpdatePayload = {
   profile_summary?: string | null
   job_fit_model: ProfileJobFitModel
   analysis_preferences_for_job_assistant: ProfileAnalysisPreferences
+  financial_baseline_for_job_assistant?: {
+    amount: number
+    currency: string
+    basis: 'annual_salary' | 'daily_rate' | 'hourly'
+    hours_per_week?: number | null
+    days_per_year?: number | null
+  } | null
+  strategic_preferences_for_job_assistant?: {
+    risk_tolerance?: 'low' | 'medium' | 'high' | null
+    time_horizon?: 'short' | 'mid' | 'long' | null
+    career_stage?: string | null
+    non_negotiables?: string[]
+  } | null
+  location_preferences_for_job_assistant?: ProfileLocationPreferences | null
 }
 
 export type ProfileExplainResponse = {
@@ -122,14 +218,14 @@ export type ProfileExplainResponse = {
 
 export class ApiNotFoundError extends Error {}
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-
 export const emptyFields: ExtractFieldsResponse = {
   title: '',
   company: '',
   location: '',
   url: '',
   source: '',
+  work_arrangement: 'unknown',
+  compensation_display: '',
   seniority: '',
   summary: '',
   keywords: [],
@@ -138,6 +234,8 @@ export const emptyFields: ExtractFieldsResponse = {
   fit_classification: null,
   fit_rationale: '',
   decision: null,
+  dimension_assessment: null,
+  decision_v2: null,
 }
 
 export const getApiErrorMessage = (payload: unknown): string | null => {
@@ -184,16 +282,47 @@ export const formatCreatedAt = (createdAt?: string | null) => {
   return date.toLocaleString()
 }
 
+export const getWorkArrangementLabel = (workArrangement?: WorkArrangement | null) => {
+  switch (workArrangement) {
+    case 'remote':
+      return 'Remote'
+    case 'hybrid':
+      return 'Hybrid'
+    case 'onsite':
+      return 'On-site'
+    default:
+      return 'Unknown arrangement'
+  }
+}
+
+const formatDaysPerWeek = (count: number, label: string) => `${count} ${label} ${count === 1 ? 'day' : 'days'}/week`
+
+export const getWorkScheduleSummary = (signals?: JobWorkLocationSignals | null) => {
+  if (!signals) {
+    return null
+  }
+
+  const parts: string[] = []
+
+  if (typeof signals.remote_days_per_week === 'number' && Number.isFinite(signals.remote_days_per_week)) {
+    parts.push(formatDaysPerWeek(signals.remote_days_per_week, 'remote'))
+  }
+
+  if (typeof signals.onsite_days_per_week === 'number' && Number.isFinite(signals.onsite_days_per_week)) {
+    parts.push(formatDaysPerWeek(signals.onsite_days_per_week, 'on-site'))
+  }
+
+  return parts.length > 0 ? parts.join(' • ') : null
+}
+
 export const fetchJobById = async (
   jobId: string,
   fallbackErrorMessage = 'Could not load this job.',
 ): Promise<Job> => {
-  if (!API_BASE_URL) {
-    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
-  }
+  getApiBaseUrl()
 
   try {
-    const response = await fetch(`${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}`)
+    const response = await apiFetch(`/jobs/${encodeURIComponent(jobId)}`)
     const responseBody = await response.json().catch(() => null)
 
     if (response.status === 404) {
@@ -227,9 +356,7 @@ export const fetchLlmLogs = async (
   options: FetchLlmLogsOptions = {},
   fallbackErrorMessage = 'Could not load LLM usage logs.',
 ): Promise<LlmCallLogListResponse> => {
-  if (!API_BASE_URL) {
-    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
-  }
+  getApiBaseUrl()
 
   try {
     const params = new URLSearchParams()
@@ -251,7 +378,7 @@ export const fetchLlmLogs = async (
     }
 
     const query = params.toString()
-    const response = await fetch(`${API_BASE_URL}/llm-logs/${query ? `?${query}` : ''}`)
+    const response = await apiFetch(`/llm-logs/${query ? `?${query}` : ''}`)
     const responseBody = await response.json().catch(() => null)
 
     if (!response.ok) {
@@ -282,12 +409,10 @@ export const fetchLlmLogs = async (
 export const fetchProfile = async (
   fallbackErrorMessage = 'Could not load profile.',
 ): Promise<ProfileResponse> => {
-  if (!API_BASE_URL) {
-    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
-  }
+  getApiBaseUrl()
 
   try {
-    const response = await fetch(`${API_BASE_URL}/profile/`)
+    const response = await apiFetch('/profile/')
     const responseBody = await response.json().catch(() => null)
 
     if (!response.ok) {
@@ -313,16 +438,14 @@ export const updateProfile = async (
   payload: ProfileUpdatePayload,
   fallbackErrorMessage = 'Could not save profile.',
 ): Promise<ProfileResponse> => {
-  if (!API_BASE_URL) {
-    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
-  }
+  getApiBaseUrl()
 
   try {
-    const response = await fetch(`${API_BASE_URL}/profile/`, {
+    const response = await apiFetch('/profile/', {
       method: 'PUT',
-      headers: {
+      headers: getJsonHeaders({
         'Content-Type': 'application/json',
-      },
+      }),
       body: JSON.stringify(payload),
     })
     const responseBody = await response.json().catch(() => null)
@@ -349,12 +472,10 @@ export const updateProfile = async (
 export const explainProfile = async (
   fallbackErrorMessage = 'Could not generate profile explanation.',
 ): Promise<ProfileExplainResponse> => {
-  if (!API_BASE_URL) {
-    throw new Error('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
-  }
+  getApiBaseUrl()
 
   try {
-    const response = await fetch(`${API_BASE_URL}/profile/explain`, {
+    const response = await apiFetch('/profile/explain', {
       method: 'POST',
     })
     const responseBody = await response.json().catch(() => null)

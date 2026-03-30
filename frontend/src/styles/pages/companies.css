@@ -1,0 +1,158 @@
+.companies-empty-state {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.companies-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.companies-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.company-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.company-item:hover {
+  background: rgba(13, 13, 13, 0.018);
+}
+
+.company-item-main {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.company-item-topline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.company-item-host {
+  font-size: 0.96rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.company-item-identity {
+  color: #4c5663;
+  font-size: 0.84rem;
+}
+
+.company-item-summary {
+  color: var(--color-text-body);
+  max-width: 72ch;
+}
+
+.company-item-meta {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  min-width: 150px;
+}
+
+.company-item-meta div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.company-item-meta dt {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.company-item-meta dd {
+  margin: 0;
+  color: #2f3640;
+  font-size: 0.82rem;
+}
+
+.company-dialog-panel {
+  width: min(560px, 100%);
+}
+
+.company-dialog-body {
+  gap: 1rem;
+}
+
+.company-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.company-source-fieldset {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(13, 13, 13, 0.1);
+  border-radius: var(--radius-md);
+  background: rgba(247, 245, 240, 0.55);
+}
+
+.company-source-fieldset-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.company-source-fieldset-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.company-source-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.company-source-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .company-item {
+    grid-template-columns: 1fr;
+  }
+
+  .company-item-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+  }
+
+  .company-source-fieldset-header,
+  .company-source-row {
+    grid-template-columns: 1fr;
+  }
+
+  .company-source-fieldset-header {
+    display: grid;
+  }
+}

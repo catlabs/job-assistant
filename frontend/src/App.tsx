@@ -1,8 +1,10 @@
-import { Briefcase, FileText, PanelLeftClose, PanelLeftOpen, User } from 'lucide-react'
+import { Briefcase, Building2, FileText, PanelLeftClose, PanelLeftOpen, User } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Button, { getButtonClassName } from './components/Button'
 import { HeaderAction, PageHeaderConfig, PageHeaderProvider } from './components/PageHeaderContext'
+import CompanyDetailPage from './pages/CompanyDetailPage'
+import CompaniesPage from './pages/CompaniesPage'
 import JobComparePage from './pages/JobComparePage'
 import JobDetailPage from './pages/JobDetailPage'
 import JobsPage from './pages/JobsPage'
@@ -18,6 +20,7 @@ function App() {
   })
   const location = useLocation()
   const isJobsRoute = location.pathname === '/jobs' || location.pathname.startsWith('/jobs/')
+  const isCompaniesRoute = location.pathname === '/companies' || location.pathname.startsWith('/companies/')
   const navigationItems = [
     {
       to: '/jobs',
@@ -25,6 +28,13 @@ function App() {
       ariaLabel: 'Jobs',
       isActive: isJobsRoute,
       icon: Briefcase,
+    },
+    {
+      to: '/companies',
+      label: 'Companies',
+      ariaLabel: 'Companies',
+      isActive: isCompaniesRoute,
+      icon: Building2,
     },
     {
       to: '/llm-logs',
@@ -132,6 +142,8 @@ function App() {
                 <Route path="/jobs" element={<JobsPage />} />
                 <Route path="/jobs/compare" element={<JobComparePage />} />
                 <Route path="/jobs/:jobId" element={<JobDetailPage />} />
+                <Route path="/companies" element={<CompaniesPage />} />
+                <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
                 <Route path="/llm-logs" element={<LlmLogsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="*" element={<Navigate to="/jobs" replace />} />

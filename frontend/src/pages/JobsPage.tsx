@@ -1,10 +1,13 @@
+import Badge from '../components/Badge'
 import FitIcon from '../components/FitIcon'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import ExtractJobDialog from '../components/ExtractJobDialog'
 import { usePageHeader } from '../components/PageHeaderContext'
-import { API_BASE_URL, getApiErrorMessage, Job, JobListResponse } from '../lib/jobs'
+import { apiFetch, getApiBaseUrl } from '../lib/api'
+import { getFinancialFitDisplay, getLifestyleFitDisplay, getStrategicFitDisplay } from '../lib/badges'
+import { getApiErrorMessage, getWorkArrangementLabel, getWorkScheduleSummary, Job, JobListResponse } from '../lib/jobs'
 import { FitFilter } from '../lib/jobDisplay'
 
 function JobsPage() {
@@ -20,8 +23,10 @@ function JobsPage() {
   const fetchJobs = async () => {
     setJobsError('')
 
-    if (!API_BASE_URL) {
-      setJobsError('Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+    try {
+      getApiBaseUrl()
+    } catch (baseUrlError) {
+      setJobsError(baseUrlError instanceof Error ? baseUrlError.message : 'Missing VITE_API_BASE_URL. Add it to frontend/.env.')
       setJobs([])
       return
     }
@@ -29,7 +34,7 @@ function JobsPage() {
     setJobsLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/jobs/`)
+      const response = await apiFetch('/jobs/')
       const responseBody = await response.json().catch(() => null)
 
       if (!response.ok) {
@@ -165,6 +170,18 @@ function JobsPage() {
                     const jobId = String(job.id)
                     const isCompared = compareSelectedIds.includes(jobId)
                     const fitClassification = job.analysis?.fit_classification
+                    const dimensionAssessment = job.analysis?.dimension_assessment
+                    const workArrangement = job.analysis?.work_arrangement ?? 'unknown'
+                    const workScheduleSummary = getWorkScheduleSummary(job.analysis)
+                    const strategicFitDisplay = getStrategicFitDisplay(dimensionAssessment?.strategic_fit)
+                    const financialFitDisplay = getFinancialFitDisplay(dimensionAssessment?.financial_fit)
+                    const lifestyleFitDisplay = getLifestyleFitDisplay(dimensionAssessment?.lifestyle_fit)
+                    const showWorkSignals = workArrangement !== 'unknown' || Boolean(workScheduleSummary)
+                    const showDimensionSummary = Boolean(
+                      dimensionAssessment?.strategic_fit ||
+                        dimensionAssessment?.financial_fit ||
+                        dimensionAssessment?.lifestyle_fit,
+                    )
                     return (
                       <li
                         key={job.id}
@@ -204,6 +221,21 @@ function JobsPage() {
                             </span>
                             <span>{job.location || 'Unknown location'}</span>
                           </p>
+                          {showWorkSignals ? (
+                            <div className="job-item-signal-row" aria-label="Work location signals">
+                              {workArrangement !== 'unknown' ? (
+                                <Badge tone="subtle">{getWorkArrangementLabel(workArrangement)}</Badge>
+                              ) : null}
+                              {workScheduleSummary ? <span className="job-item-signal-text">{workScheduleSummary}</span> : null}
+                            </div>
+                          ) : null}
+                          {showDimensionSummary ? (
+                            <div className="job-item-dimension-row" aria-label="Decision breakdown summary">
+                              <Badge tone={strategicFitDisplay.tone}>Strategic: {strategicFitDisplay.label}</Badge>
+                              <Badge tone={financialFitDisplay.tone}>Financial: {financialFitDisplay.label}</Badge>
+                              <Badge tone={lifestyleFitDisplay.tone}>Lifestyle: {lifestyleFitDisplay.label}</Badge>
+                            </div>
+                          ) : null}
                         </div>
                       </li>
                     )
