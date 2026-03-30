@@ -10,6 +10,7 @@ Personal project: a small **FastAPI** backend to collect job postings, run **lig
 - **Profile page + API (V1)**: view/edit the local profile used by fit analysis (`/profile` in UI, `/profile/*` API)
 - **Job extraction**: stateless LLM extraction from pasted posting text (`POST /jobs/extract-fields`), no persistence
 - **Ask**: stub Q&A over stored jobs (optional use of `user_profile.json` at the repo root)
+- **Optional shared-key protection**: protect expensive or sensitive backend routes with a single deploy-time API key
 - **SQLite** persistence via **SQLAlchemy** (no auth, minimal surface area)
 
 ## Stack
@@ -80,6 +81,7 @@ npm run dev
 The Vite app runs at [http://localhost:5173](http://localhost:5173) and calls the backend using:
 
 - `VITE_API_BASE_URL` (default in `.env.example`: `http://127.0.0.1:8000`)
+- `VITE_API_KEY` (optional; only needed when backend protected mode is enabled)
 
 Make sure the backend is running at the same base URL before clicking **Extract fields**.
 
@@ -88,9 +90,17 @@ Make sure the backend is running at the same base URL before clicking **Extract 
 Environment variables use the prefix `JOB_ASSISTANT_` (see `backend/app/core/config.py`). Copy `backend/.env.example` to `backend/.env` and adjust.
 
 - **`JOB_ASSISTANT_DATABASE_URL`** — default `sqlite:///./job_assistant.db` (file is created next to your current working directory when using a relative path; running from `backend/` keeps the DB under `backend/`).
+- **`JOB_ASSISTANT_API_KEY`** — optional shared secret for protected mode; when set, sensitive routes require either `Authorization: Bearer <token>` or `X-API-Key: <token>`
+- **`JOB_ASSISTANT_CORS_ALLOW_ORIGINS`** — optional comma-separated CORS origin list; defaults to `http://localhost:5173,http://127.0.0.1:5173`
 - **`JOB_ASSISTANT_OPENAI_API_KEY`** — required for `POST /jobs/extract-fields`
 - **`JOB_ASSISTANT_OPENAI_MODEL`** — extraction model (default `gpt-4.1-mini`)
 - **`JOB_ASSISTANT_OPENAI_TIMEOUT_SECONDS`** — OpenAI timeout (default `20`)
+
+Protected mode is intentionally simple:
+
+- If `JOB_ASSISTANT_API_KEY` is unset, local development stays unprotected.
+- If `JOB_ASSISTANT_API_KEY` is set, the backend protects expensive or sensitive routes and the frontend should send the same value through `VITE_API_KEY`.
+- For production, set both the backend API key and explicit frontend origin list instead of relying on the localhost defaults.
 
 Do **not** commit `.env` or your local `.db` if they contain personal data.
 Do **not** commit your local `user_profile.json`; use `user_profile.example.json` as a starting template.
@@ -106,12 +116,19 @@ A future multi-profile storage layer can keep the same API shape and swap the pe
 | GET    | `/health/`  | Liveness       |
 | POST   | `/jobs/`    | Create job     |
 | GET    | `/jobs/`    | List jobs      |
-| POST   | `/jobs/extract-fields` | Stateless LLM field extraction |
+| POST   | `/jobs/extract-fields` | Stateless LLM field extraction, protected when API key is configured |
 | GET    | `/jobs/{id}`| Get one job    |
 | POST   | `/ask/`     | Placeholder Q&A |
 | GET    | `/profile/` | Load current profile |
-| PUT    | `/profile/` | Validate + save current profile |
-| POST   | `/profile/explain` | Optional one-shot AI profile explanation |
+| PUT    | `/profile/` | Validate + save current profile, protected when API key is configured |
+| POST   | `/profile/explain` | Optional one-shot AI profile explanation, protected when API key is configured |
+
+Protected routes also include:
+
+- `POST /jobs/`
+- `POST /companies/ingest`
+- `POST /companies/{id}/refresh`
+- `GET /llm-logs/`
 
 ## Roadmap (informal)
 

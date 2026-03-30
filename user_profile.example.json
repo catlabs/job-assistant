@@ -30,5 +30,37 @@
       "learning",
       "stability"
     ]
+  },
+  "financial_baseline_for_job_assistant": {
+    "amount": 155000,
+    "currency": "USD",
+    "basis": "annual_salary",
+    "hours_per_week": 40,
+    "days_per_year": 250
+  },
+  "strategic_preferences_for_job_assistant": {
+    "risk_tolerance": "medium",
+    "time_horizon": "mid",
+    "career_stage": "senior individual contributor",
+    "non_negotiables": [
+      "Meaningful backend ownership",
+      "Reasonable work-life sustainability"
+    ]
+  },
+  "location_preferences_for_job_assistant": {
+    "brussels": {
+      "max_onsite_days_per_week": 2,
+      "notes": "Comfortable with limited onsite time in Brussels."
+    },
+    "nearby_cities": {
+      "max_onsite_days_per_period": 1,
+      "period_weeks": 2,
+      "notes": "Nearby travel is acceptable when it stays occasional."
+    },
+    "far_locations": {
+      "remote_required": true,
+      "max_travel_days_per_month": 2,
+      "notes": "Far locations should stay remote-first with minimal travel."
+    }
   }
 }
