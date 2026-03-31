@@ -1,8 +1,20 @@
-import { formatCreatedAt, Job } from '../lib/jobs'
+import {
+  formatCompensationSummary,
+  formatCreatedAt,
+  getEmploymentTypeLabel,
+  getSignalLabel,
+  getWorkArrangementLabel,
+  Job,
+} from '../lib/jobs'
 
 type JobCompareTableProps = {
   firstJob: Job
   secondJob: Job
+}
+
+const getSkillsText = (job: Job) => {
+  const names = job.criteria.technical_signals.skills.map((skill) => skill.name)
+  return names.length > 0 ? names.join(', ') : 'None'
 }
 
 function JobCompareTable({ firstJob, secondJob }: JobCompareTableProps) {
@@ -11,51 +23,53 @@ function JobCompareTable({ firstJob, secondJob }: JobCompareTableProps) {
       <tbody>
         <tr>
           <th scope="row">Field</th>
-          <th>{firstJob.title || 'Untitled job'}</th>
-          <th>{secondJob.title || 'Untitled job'}</th>
-        </tr>
-        <tr>
-          <th scope="row">Title</th>
-          <td>{firstJob.title || 'Untitled job'}</td>
-          <td>{secondJob.title || 'Untitled job'}</td>
+          <th>{firstJob.title || firstJob.criteria.job_basics.title || 'Untitled job'}</th>
+          <th>{secondJob.title || secondJob.criteria.job_basics.title || 'Untitled job'}</th>
         </tr>
         <tr>
           <th scope="row">Company</th>
-          <td>{firstJob.company || 'Unknown company'}</td>
-          <td>{secondJob.company || 'Unknown company'}</td>
+          <td>{firstJob.company || firstJob.criteria.job_basics.company_name || 'Unknown company'}</td>
+          <td>{secondJob.company || secondJob.criteria.job_basics.company_name || 'Unknown company'}</td>
         </tr>
         <tr>
           <th scope="row">Location</th>
-          <td>{firstJob.location || 'Unknown location'}</td>
-          <td>{secondJob.location || 'Unknown location'}</td>
+          <td>{firstJob.location || firstJob.criteria.job_basics.location_text || 'Unknown location'}</td>
+          <td>{secondJob.location || secondJob.criteria.job_basics.location_text || 'Unknown location'}</td>
         </tr>
         <tr>
-          <th scope="row">Source</th>
-          <td>{firstJob.source || 'unknown'}</td>
-          <td>{secondJob.source || 'unknown'}</td>
+          <th scope="row">Arrangement</th>
+          <td>{getWorkArrangementLabel(firstJob.criteria.personal_life_signals.work_arrangement)}</td>
+          <td>{getWorkArrangementLabel(secondJob.criteria.personal_life_signals.work_arrangement)}</td>
+        </tr>
+        <tr>
+          <th scope="row">Employment</th>
+          <td>{getEmploymentTypeLabel(firstJob.criteria.job_basics.employment_type)}</td>
+          <td>{getEmploymentTypeLabel(secondJob.criteria.job_basics.employment_type)}</td>
         </tr>
         <tr>
           <th scope="row">Seniority</th>
-          <td>{firstJob.analysis?.seniority || 'Unknown'}</td>
-          <td>{secondJob.analysis?.seniority || 'Unknown'}</td>
+          <td>{getSignalLabel(firstJob.criteria.job_basics.seniority_level)}</td>
+          <td>{getSignalLabel(secondJob.criteria.job_basics.seniority_level)}</td>
         </tr>
         <tr>
           <th scope="row">Summary</th>
-          <td>{firstJob.analysis?.summary || 'Not available'}</td>
-          <td>{secondJob.analysis?.summary || 'Not available'}</td>
+          <td>{firstJob.criteria.job_basics.job_summary || 'Not available'}</td>
+          <td>{secondJob.criteria.job_basics.job_summary || 'Not available'}</td>
         </tr>
         <tr>
-          <th scope="row">Keywords</th>
-          <td>
-            {firstJob.analysis?.keywords && firstJob.analysis.keywords.length > 0
-              ? firstJob.analysis.keywords.join(', ')
-              : 'None'}
-          </td>
-          <td>
-            {secondJob.analysis?.keywords && secondJob.analysis.keywords.length > 0
-              ? secondJob.analysis.keywords.join(', ')
-              : 'None'}
-          </td>
+          <th scope="row">Skills</th>
+          <td>{getSkillsText(firstJob)}</td>
+          <td>{getSkillsText(secondJob)}</td>
+        </tr>
+        <tr>
+          <th scope="row">Compensation</th>
+          <td>{formatCompensationSummary(firstJob.criteria.financial_signals)}</td>
+          <td>{formatCompensationSummary(secondJob.criteria.financial_signals)}</td>
+        </tr>
+        <tr>
+          <th scope="row">Extraction confidence</th>
+          <td>{getSignalLabel(firstJob.criteria.extraction_quality.confidence_level)}</td>
+          <td>{getSignalLabel(secondJob.criteria.extraction_quality.confidence_level)}</td>
         </tr>
         <tr>
           <th scope="row">Created date</th>

@@ -1,0 +1,278 @@
+.job-detail-primary-meta,
+.job-item-primary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  color: #5b5b5b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.job-detail-meta-separator,
+.job-item-meta-separator {
+  color: rgba(91, 91, 91, 0.52);
+}
+
+.job-detail-work-arrangement,
+.job-item-work-arrangement {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: inherit;
+}
+
+.job-detail-work-arrangement-icon,
+.job-item-work-arrangement-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b6b6b;
+}
+
+.job-detail-secondary-meta,
+.job-item-secondary-meta {
+  margin: 0;
+  color: #5b5b5b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.job-detail-compensation-line,
+.job-item-compensation {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: #5b5b5b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.job-detail-compensation-label,
+.job-item-compensation-label {
+  color: #666666;
+  font-size: 0.92rem;
+}
+
+.job-detail-compensation-value,
+.job-item-compensation-value {
+  margin: 0;
+  color: #2f2a20;
+  font-size: 0.96rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.job-detail-compensation-estimated {
+  color: #6b6253;
+  font-size: 0.9rem;
+}
+
+.job-detail-compensation-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6a6a6a;
+  cursor: pointer;
+}
+
+.job-detail-compensation-info:hover {
+  color: #2f2f2f;
+}
+
+.job-ui-technical-signals {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.job-ui-skill-chip-list {
+  --skill-chip-bg: #f3f3f1;
+  --skill-chip-border: rgba(13, 13, 13, 0.08);
+  --skill-chip-text: #363636;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+  min-width: 0;
+}
+
+.job-ui-skill-chip-list-compact {
+  gap: 0.36rem;
+}
+
+.job-ui-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 0.1rem 0.52rem;
+  border: 1px solid var(--skill-chip-border);
+  border-radius: 999px;
+  background: var(--skill-chip-bg);
+  color: var(--skill-chip-text);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.job-ui-skill-chip[data-importance='preferred'] {
+  opacity: 0.84;
+}
+
+.job-ui-skill-chip[data-importance='mentioned'] {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.job-ui-skill-chip[data-category='programming_language'] {
+  --skill-chip-bg: #edf4ff;
+  --skill-chip-border: #cbdbf8;
+  --skill-chip-text: #335784;
+}
+
+.job-ui-skill-chip[data-category='framework'] {
+  --skill-chip-bg: #f4efff;
+  --skill-chip-border: #d9cef8;
+  --skill-chip-text: #5b4a90;
+}
+
+.job-ui-skill-chip[data-category='backend'] {
+  --skill-chip-bg: #eef8f6;
+  --skill-chip-border: #cae6df;
+  --skill-chip-text: #2d6657;
+}
+
+.job-ui-skill-chip[data-category='frontend'] {
+  --skill-chip-bg: #fff4ea;
+  --skill-chip-border: #f2d8c1;
+  --skill-chip-text: #8f5f36;
+}
+
+.job-ui-skill-chip[data-category='ai_data'] {
+  --skill-chip-bg: #fdeff5;
+  --skill-chip-border: #efcfdd;
+  --skill-chip-text: #93556d;
+}
+
+.job-ui-skill-chip[data-category='cloud_infra'] {
+  --skill-chip-bg: #fff2e5;
+  --skill-chip-border: #efd5b5;
+  --skill-chip-text: #8d6037;
+}
+
+.job-ui-skill-chip[data-category='devops'] {
+  --skill-chip-bg: #f2f3f5;
+  --skill-chip-border: #d8dbe0;
+  --skill-chip-text: #58606b;
+}
+
+.job-ui-skill-chip[data-category='testing_quality'] {
+  --skill-chip-bg: #f8f1f5;
+  --skill-chip-border: #e5d4dd;
+  --skill-chip-text: #765267;
+}
+
+.job-ui-skill-chip[data-category='data_storage'] {
+  --skill-chip-bg: #eef7ef;
+  --skill-chip-border: #d0e2d2;
+  --skill-chip-text: #426847;
+}
+
+.job-ui-skill-chip[data-category='delivery_tool'],
+.job-ui-skill-chip[data-category='architecture_practice'] {
+  --skill-chip-bg: #f2f3f5;
+  --skill-chip-border: #d8dbe0;
+  --skill-chip-text: #58606b;
+}
+
+.job-ui-skill-overflow {
+  color: #6a6a6a;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.job-ui-skill-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem 0.7rem;
+  color: #717171;
+  font-size: 0.72rem;
+}
+
+.job-ui-skill-legend-item {
+  --skill-chip-bg: #f3f3f1;
+  --skill-chip-border: rgba(13, 13, 13, 0.08);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.job-ui-skill-legend-item[data-category='programming_language'] {
+  --skill-chip-bg: #eef4ff;
+  --skill-chip-border: #cfdbf6;
+}
+
+.job-ui-skill-legend-item[data-category='framework'] {
+  --skill-chip-bg: #f3f0ff;
+  --skill-chip-border: #d8cef8;
+}
+
+.job-ui-skill-legend-item[data-category='backend'] {
+  --skill-chip-bg: #eef8f6;
+  --skill-chip-border: #cae6df;
+}
+
+.job-ui-skill-legend-item[data-category='frontend'] {
+  --skill-chip-bg: #fff4ea;
+  --skill-chip-border: #f2d8c1;
+}
+
+.job-ui-skill-legend-item[data-category='ai_data'] {
+  --skill-chip-bg: #fdeff5;
+  --skill-chip-border: #efcfdd;
+}
+
+.job-ui-skill-legend-item[data-category='cloud_infra'] {
+  --skill-chip-bg: #fff2e5;
+  --skill-chip-border: #efd5b5;
+}
+
+.job-ui-skill-legend-item[data-category='devops'] {
+  --skill-chip-bg: #f2f3f5;
+  --skill-chip-border: #d8dbe0;
+}
+
+.job-ui-skill-legend-item[data-category='testing_quality'] {
+  --skill-chip-bg: #f8f1f5;
+  --skill-chip-border: #e5d4dd;
+}
+
+.job-ui-skill-legend-item[data-category='data_storage'] {
+  --skill-chip-bg: #eef7ef;
+  --skill-chip-border: #d0e2d2;
+}
+
+.job-ui-skill-legend-item[data-category='delivery_tool'],
+.job-ui-skill-legend-item[data-category='architecture_practice'] {
+  --skill-chip-bg: #f2f3f5;
+  --skill-chip-border: #d8dbe0;
+}
+
+.job-ui-skill-legend-swatch {
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 1px solid var(--skill-chip-border);
+  border-radius: 999px;
+  background: var(--skill-chip-bg);
+  flex-shrink: 0;
+}

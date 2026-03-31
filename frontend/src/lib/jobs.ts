@@ -1,65 +1,121 @@
 import { apiFetch, getApiBaseUrl, getJsonHeaders } from './api'
 
-export type JobDecisionV1 = {
-  headline: string
-  detail: string
-  risk_flags: string[]
-  clarifying_questions: string[]
-}
-
-export type DecisionAnalysisV2 = {
-  compensation_assessment: {
-    clarity: 'unknown' | 'partial' | 'clear'
-    vs_user_baseline: 'below' | 'in_line' | 'above' | 'unknown'
-    summary: string
-    caveats?: string | null
-  }
-  tradeoffs: string[]
-  career_positioning: {
-    narrative: string
-    positioning_tags: string[]
-  }
-  confidence: 'low' | 'medium' | 'high'
-}
-
-export type JobDimensionAssessment = {
-  strategic_fit: 'high' | 'medium' | 'low'
-  financial_fit: 'upgrade' | 'neutral' | 'downgrade' | 'unknown'
-  lifestyle_fit: 'compatible' | 'constrained' | 'incompatible' | 'unknown'
-  key_drivers: string[]
-  key_tradeoffs: string[]
-  key_unknowns: string[]
-}
-
+export type EmploymentType = 'full_time' | 'freelance' | 'contract' | 'part_time' | 'unknown'
+export type ContractType = 'employee' | 'freelance' | 'consulting' | 'fixed_term' | 'unknown'
+export type SeniorityLevel = 'junior' | 'mid' | 'senior' | 'lead' | 'staff' | 'principal' | 'unknown'
 export type WorkArrangement = 'remote' | 'hybrid' | 'onsite' | 'unknown'
+export type ScheduleFlexibilitySignal = 'high' | 'medium' | 'low' | 'unknown'
+export type SalaryCurrency = 'EUR' | 'USD' | 'GBP' | 'unknown'
+export type SalaryPeriod = 'yearly' | 'monthly' | 'daily' | 'hourly' | 'unknown'
+export type SignalStrength = 'high' | 'medium' | 'low' | 'unknown'
+export type DeliveryScopeSignal =
+  | 'full_stack'
+  | 'backend_only'
+  | 'frontend_only'
+  | 'platform'
+  | 'cross_functional'
+  | 'unknown'
+export type ConfidenceLevel = 'high' | 'medium' | 'low'
+export type SkillCategory =
+  | 'programming_language'
+  | 'framework'
+  | 'backend'
+  | 'frontend'
+  | 'ai_data'
+  | 'cloud_infra'
+  | 'devops'
+  | 'testing_quality'
+  | 'data_storage'
+  | 'delivery_tool'
+  | 'architecture_practice'
+export type SkillImportance = 'required' | 'preferred' | 'mentioned'
 
-export type JobWorkLocationSignals = {
-  remote_days_per_week?: number | null
-  onsite_days_per_week?: number | null
-  work_schedule_detail?: string | null
+export type JobCriteriaSkill = {
+  name: string
+  category: SkillCategory
+  importance: SkillImportance
+}
+
+export type JobBasics = {
+  title: string
+  company_name: string
+  location_text: string
+  country: string
+  city: string
+  employment_type: EmploymentType
+  contract_type: ContractType
+  seniority_level: SeniorityLevel
+  job_summary: string
+}
+
+export type TechnicalSignals = {
+  skills: JobCriteriaSkill[]
+  technical_notes: string
+}
+
+export type PersonalLifeSignals = {
+  work_arrangement: WorkArrangement
+  onsite_days_per_week: number | null
+  fully_remote: boolean | null
+  fully_onsite: boolean | null
+  travel_required: boolean | null
+  travel_percentage: number | null
+  relocation_required: boolean | null
+  schedule_flexibility_signal: ScheduleFlexibilitySignal
+  personal_life_notes: string
+}
+
+export type FinancialSignals = {
+  estimated_compensation: {
+    estimated_salary_min: number | null
+    estimated_salary_max: number | null
+    estimated_daily_rate_min: number | null
+    estimated_daily_rate_max: number | null
+    estimated_currency: SalaryCurrency
+    confidence: 'high' | 'medium' | 'low' | 'unknown'
+    basis: string
+  }
+  salary_min: number | null
+  salary_max: number | null
+  salary_currency: SalaryCurrency
+  salary_period: SalaryPeriod
+  daily_rate_min: number | null
+  daily_rate_max: number | null
+  bonus_mentioned: boolean | null
+  equity_mentioned: boolean | null
+  financial_clarity: 'high' | 'medium' | 'low'
+  financial_notes: string
+}
+
+export type StrategicSignals = {
+  ai_exposure_signal: SignalStrength
+  product_ownership_signal: SignalStrength
+  delivery_scope_signal: DeliveryScopeSignal
+  learning_potential_signal: SignalStrength
+  market_value_signal: SignalStrength
+  building_role: boolean | null
+  annotation_or_evaluation_only: boolean | null
+  strategic_notes: string
+}
+
+export type ExtractionQuality = {
+  confidence_level: ConfidenceLevel
+  missing_critical_information: string[]
+  ambiguity_notes: string
+}
+
+export type JobCriteria = {
+  job_basics: JobBasics
+  technical_signals: TechnicalSignals
+  personal_life_signals: PersonalLifeSignals
+  financial_signals: FinancialSignals
+  strategic_signals: StrategicSignals
+  extraction_quality: ExtractionQuality
 }
 
 export type ExtractFieldsResponse = {
-  title: string
-  company: string
-  location: string
-  url: string
-  source: string
-  work_arrangement: WorkArrangement
-  remote_days_per_week?: number | null
-  onsite_days_per_week?: number | null
-  work_schedule_detail?: string | null
-  compensation_display: string
-  seniority: string
-  summary: string
-  keywords: string[]
   raw_text: string
-  extraction_ref?: string | null
-  fit_classification?: 'strong_fit' | 'acceptable_intermediate' | 'misaligned' | null
-  fit_rationale?: string
-  decision?: JobDecisionV1 | null
-  dimension_assessment?: JobDimensionAssessment | null
-  decision_v2?: DecisionAnalysisV2 | null
+  criteria: JobCriteria
 }
 
 export type JobCreatePayload = {
@@ -69,46 +125,7 @@ export type JobCreatePayload = {
   location?: string
   url?: string
   source?: string
-  extraction_ref?: string
-}
-
-export type JobAnalysis = JobWorkLocationSignals & {
-  normalized_title?: string | null
-  normalized_company?: string | null
-  normalized_location?: string | null
-  work_arrangement?: WorkArrangement | null
-  compensation_display?: string | null
-  seniority?: string | null
-  keywords?: string[] | null
-  summary?: string | null
-  fit_classification?: 'strong_fit' | 'acceptable_intermediate' | 'misaligned' | null
-  fit_rationale?: string | null
-  decision?: JobDecisionV1 | null
-  dimension_assessment?: JobDimensionAssessment | null
-  decision_v2?: DecisionAnalysisV2 | null
-}
-
-export type ProfileLocationPreferencesBrussels = {
-  max_onsite_days_per_week?: number | null
-  notes?: string | null
-}
-
-export type ProfileLocationPreferencesNearbyCities = {
-  max_onsite_days_per_period?: number | null
-  period_weeks?: number | null
-  notes?: string | null
-}
-
-export type ProfileLocationPreferencesFarLocations = {
-  remote_required?: boolean | null
-  max_travel_days_per_month?: number | null
-  notes?: string | null
-}
-
-export type ProfileLocationPreferences = {
-  brussels?: ProfileLocationPreferencesBrussels | null
-  nearby_cities?: ProfileLocationPreferencesNearbyCities | null
-  far_locations?: ProfileLocationPreferencesFarLocations | null
+  criteria?: JobCriteria
 }
 
 export type Job = {
@@ -119,7 +136,7 @@ export type Job = {
   url?: string | null
   source?: string | null
   description?: string | null
-  analysis?: JobAnalysis | null
+  criteria: JobCriteria
   created_at?: string | null
 }
 
@@ -154,6 +171,29 @@ export type FetchLlmLogsOptions = {
   offset?: number
   operation?: string
   status?: 'success' | 'error'
+}
+
+export type ProfileLocationPreferencesBrussels = {
+  max_onsite_days_per_week?: number | null
+  notes?: string | null
+}
+
+export type ProfileLocationPreferencesNearbyCities = {
+  max_onsite_days_per_period?: number | null
+  period_weeks?: number | null
+  notes?: string | null
+}
+
+export type ProfileLocationPreferencesFarLocations = {
+  remote_required?: boolean | null
+  max_travel_days_per_month?: number | null
+  notes?: string | null
+}
+
+export type ProfileLocationPreferences = {
+  brussels?: ProfileLocationPreferencesBrussels | null
+  nearby_cities?: ProfileLocationPreferencesNearbyCities | null
+  far_locations?: ProfileLocationPreferencesFarLocations | null
 }
 
 export type ProfileJobFitModel = {
@@ -218,24 +258,74 @@ export type ProfileExplainResponse = {
 
 export class ApiNotFoundError extends Error {}
 
+export const emptyCriteria: JobCriteria = {
+  job_basics: {
+    title: '',
+    company_name: '',
+    location_text: '',
+    country: '',
+    city: '',
+    employment_type: 'unknown',
+    contract_type: 'unknown',
+    seniority_level: 'unknown',
+    job_summary: '',
+  },
+  technical_signals: {
+    skills: [],
+    technical_notes: '',
+  },
+  personal_life_signals: {
+    work_arrangement: 'unknown',
+    onsite_days_per_week: null,
+    fully_remote: null,
+    fully_onsite: null,
+    travel_required: null,
+    travel_percentage: null,
+    relocation_required: null,
+    schedule_flexibility_signal: 'unknown',
+    personal_life_notes: '',
+  },
+  financial_signals: {
+    estimated_compensation: {
+      estimated_salary_min: null,
+      estimated_salary_max: null,
+      estimated_daily_rate_min: null,
+      estimated_daily_rate_max: null,
+      estimated_currency: 'unknown',
+      confidence: 'unknown',
+      basis: '',
+    },
+    salary_min: null,
+    salary_max: null,
+    salary_currency: 'unknown',
+    salary_period: 'unknown',
+    daily_rate_min: null,
+    daily_rate_max: null,
+    bonus_mentioned: null,
+    equity_mentioned: null,
+    financial_clarity: 'low',
+    financial_notes: '',
+  },
+  strategic_signals: {
+    ai_exposure_signal: 'unknown',
+    product_ownership_signal: 'unknown',
+    delivery_scope_signal: 'unknown',
+    learning_potential_signal: 'unknown',
+    market_value_signal: 'unknown',
+    building_role: null,
+    annotation_or_evaluation_only: null,
+    strategic_notes: '',
+  },
+  extraction_quality: {
+    confidence_level: 'low',
+    missing_critical_information: [],
+    ambiguity_notes: '',
+  },
+}
+
 export const emptyFields: ExtractFieldsResponse = {
-  title: '',
-  company: '',
-  location: '',
-  url: '',
-  source: '',
-  work_arrangement: 'unknown',
-  compensation_display: '',
-  seniority: '',
-  summary: '',
-  keywords: [],
   raw_text: '',
-  extraction_ref: null,
-  fit_classification: null,
-  fit_rationale: '',
-  decision: null,
-  dimension_assessment: null,
-  decision_v2: null,
+  criteria: emptyCriteria,
 }
 
 export const getApiErrorMessage = (payload: unknown): string | null => {
@@ -295,24 +385,122 @@ export const getWorkArrangementLabel = (workArrangement?: WorkArrangement | null
   }
 }
 
-const formatDaysPerWeek = (count: number, label: string) => `${count} ${label} ${count === 1 ? 'day' : 'days'}/week`
+export const getEmploymentTypeLabel = (employmentType?: EmploymentType | null) => {
+  switch (employmentType) {
+    case 'full_time':
+      return 'Full-time'
+    case 'freelance':
+      return 'Freelance'
+    case 'contract':
+      return 'Contract'
+    case 'part_time':
+      return 'Part-time'
+    default:
+      return 'Unknown'
+  }
+}
 
-export const getWorkScheduleSummary = (signals?: JobWorkLocationSignals | null) => {
-  if (!signals) {
+export const getContractTypeLabel = (contractType?: ContractType | null) => {
+  switch (contractType) {
+    case 'employee':
+      return 'Employee'
+    case 'freelance':
+      return 'Freelance'
+    case 'consulting':
+      return 'Consulting'
+    case 'fixed_term':
+      return 'Fixed-term'
+    default:
+      return 'Unknown'
+  }
+}
+
+export const getSignalLabel = (value?: string | null) => {
+  if (!value || value === 'unknown') {
+    return 'Unknown'
+  }
+
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+export const getWorkScheduleSummary = (
+  signals?: JobCriteria['personal_life_signals'] | null,
+) => {
+  if (!signals || typeof signals.onsite_days_per_week !== 'number' || !Number.isFinite(signals.onsite_days_per_week)) {
     return null
   }
 
-  const parts: string[] = []
+  const count = signals.onsite_days_per_week
+  return `${count} on-site ${count === 1 ? 'day' : 'days'}/week`
+}
 
-  if (typeof signals.remote_days_per_week === 'number' && Number.isFinite(signals.remote_days_per_week)) {
-    parts.push(formatDaysPerWeek(signals.remote_days_per_week, 'remote'))
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+  }).format(value)
+
+const formatCompensationRange = (
+  low: number | null,
+  high: number | null,
+  currency: string,
+  suffix: string,
+) => {
+  if (low !== null && high !== null) {
+    return `${currency}${formatMoney(low)} - ${currency}${formatMoney(high)}${suffix}`
+  }
+  if (low !== null) {
+    return `${currency}${formatMoney(low)}${suffix}`
+  }
+  return null
+}
+
+export const formatCompensationSummary = (financial: JobCriteria['financial_signals']) => {
+  const explicitCurrency = financial.salary_currency === 'unknown' ? '' : `${financial.salary_currency} `
+  const periodLabel =
+    financial.salary_period === 'yearly'
+      ? ' / year'
+      : financial.salary_period === 'monthly'
+        ? ' / month'
+        : financial.salary_period === 'hourly'
+          ? ' / hour'
+          : ''
+
+  const explicitDailyRate = formatCompensationRange(financial.daily_rate_min, financial.daily_rate_max, explicitCurrency, ' / day')
+  if (explicitDailyRate) {
+    return explicitDailyRate
   }
 
-  if (typeof signals.onsite_days_per_week === 'number' && Number.isFinite(signals.onsite_days_per_week)) {
-    parts.push(formatDaysPerWeek(signals.onsite_days_per_week, 'on-site'))
+  const explicitSalary = formatCompensationRange(financial.salary_min, financial.salary_max, explicitCurrency, periodLabel)
+  if (explicitSalary) {
+    return explicitSalary
   }
 
-  return parts.length > 0 ? parts.join(' • ') : null
+  const estimated = financial.estimated_compensation
+  const estimatedCurrency = estimated.estimated_currency === 'unknown' ? '' : `${estimated.estimated_currency} `
+  const estimatedDailyRate = formatCompensationRange(
+    estimated.estimated_daily_rate_min,
+    estimated.estimated_daily_rate_max,
+    estimatedCurrency,
+    ' / day',
+  )
+  if (estimatedDailyRate) {
+    return `Estimated: ${estimatedDailyRate}`
+  }
+
+  const estimatedSalary = formatCompensationRange(
+    estimated.estimated_salary_min,
+    estimated.estimated_salary_max,
+    estimatedCurrency,
+    periodLabel,
+  )
+  if (estimatedSalary) {
+    return `Estimated: ${estimatedSalary}`
+  }
+
+  return financial.financial_notes || 'Not specified'
 }
 
 export const fetchJobById = async (

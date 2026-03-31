@@ -1,24 +1,16 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
-import FitBadge from '../components/FitBadge'
 import { apiFetch, getApiBaseUrl, getJsonHeaders } from '../lib/api'
 import {
   emptyFields,
   ExtractFieldsResponse,
+  formatCompensationSummary,
   getApiErrorMessage,
+  getSignalLabel,
+  getWorkArrangementLabel,
   JobCreatePayload,
 } from '../lib/jobs'
-
-type EditableExtractField =
-  | 'title'
-  | 'company'
-  | 'location'
-  | 'url'
-  | 'source'
-  | 'seniority'
-  | 'summary'
-  | 'keywords'
 
 function ExtractPage() {
   const navigate = useNavigate()
@@ -31,8 +23,6 @@ function ExtractPage() {
   const [error, setError] = useState('')
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [saveSuccess, setSaveSuccess] = useState('')
-  const [savedJobId, setSavedJobId] = useState<string>('')
 
   useEffect(() => {
     let cancelled = false
@@ -72,7 +62,7 @@ function ExtractPage() {
           setSelectedModel(responseDefaultModel)
           setModelLoadError('')
         }
-      } catch (_loadError) {
+      } catch {
         if (!cancelled) {
           setModels([])
           setSelectedModel('')
@@ -127,7 +117,7 @@ function ExtractPage() {
 
       const data: ExtractFieldsResponse = await response.json()
       setFields({ ...emptyFields, ...data })
-    } catch (_error) {
+    } catch {
       setFields(null)
       setError('Could not analyze this job. Please try again with more complete text.')
     } finally {
@@ -135,34 +125,14 @@ function ExtractPage() {
     }
   }
 
-  const handleFieldChange = (name: EditableExtractField, value: string) => {
-    if (!fields) {
-      return
-    }
-
-    if (name === 'keywords') {
-      const keywords = value
-        .split(',')
-        .map((keyword) => keyword.trim())
-        .filter(Boolean)
-
-      setFields({ ...fields, keywords })
-      return
-    }
-
-    setFields({ ...fields, [name]: value })
-  }
-
   const handleSaveJob = async () => {
     setSaveError('')
-    setSaveSuccess('')
 
     if (!fields) {
       return
     }
 
     const description = rawText.trim() || fields.raw_text?.trim() || ''
-
     if (!description) {
       setSaveError('Please provide a job description before saving.')
       return
@@ -175,25 +145,13 @@ function ExtractPage() {
       return
     }
 
-    const payload: JobCreatePayload = { description }
-
-    if (fields.title.trim()) {
-      payload.title = fields.title.trim()
-    }
-    if (fields.company.trim()) {
-      payload.company = fields.company.trim()
-    }
-    if (fields.location.trim()) {
-      payload.location = fields.location.trim()
-    }
-    if (fields.url.trim()) {
-      payload.url = fields.url.trim()
-    }
-    if (fields.source.trim()) {
-      payload.source = fields.source.trim()
-    }
-    if (fields.extraction_ref) {
-      payload.extraction_ref = fields.extraction_ref
+    const basics = fields.criteria.job_basics
+    const payload: JobCreatePayload = {
+      description,
+      title: basics.title || undefined,
+      company: basics.company_name || undefined,
+      location: basics.location_text || undefined,
+      criteria: fields.criteria,
     }
 
     setSaveLoading(true)
@@ -219,10 +177,7 @@ function ExtractPage() {
         throw new Error('Job saved but no job id was returned.')
       }
 
-      const createdJobId = String(jobId)
-      setSavedJobId(createdJobId)
-      setSaveSuccess('Job saved successfully.')
-      navigate(`/jobs/${createdJobId}`)
+      navigate(`/jobs/${String(jobId)}`)
     } catch (saveRequestError) {
       if (saveRequestError instanceof TypeError) {
         setSaveError('Network error while saving. Please check your connection and try again.')
@@ -231,25 +186,18 @@ function ExtractPage() {
       } else {
         setSaveError('Could not save this job posting.')
       }
-      setSavedJobId('')
     } finally {
       setSaveLoading(false)
     }
   }
 
-  const saveDescription = rawText.trim() || fields?.raw_text?.trim() || ''
-  const isSaveDisabled = !fields || !saveDescription || saveLoading
-  const decision = fields?.decision
-  const hasDecision =
-    Boolean(decision?.headline?.trim()) ||
-    Boolean(decision?.detail?.trim()) ||
-    Boolean(decision?.risk_flags?.length) ||
-    Boolean(decision?.clarifying_questions?.length)
+  const criteria = fields?.criteria
+
   return (
     <div className="content-page">
       <section className="page-heading content-block">
-        <h1>Job Field Extractor</h1>
-        <p className="page-subtitle">Paste a job description, analyze it, then save it.</p>
+        <h1>Job Criteria Extractor</h1>
+        <p className="page-subtitle">Paste a job description, extract criteria, then save it.</p>
       </section>
 
       <div className="content-scroll-area">
@@ -282,7 +230,7 @@ function ExtractPage() {
             )}
             {modelLoadError && <p className="muted">{modelLoadError}</p>}
             <Button type="submit" disabled={loading}>
-              {loading ? 'Analyzing…' : 'Analyze job'}
+              {loading ? 'Extracting…' : 'Extract criteria'}
             </Button>
           </form>
         </section>
@@ -293,135 +241,35 @@ function ExtractPage() {
           </section>
         )}
 
-        {fields && (
+        {criteria && (
           <section className="content-block">
-            <section className="panel">
-              <h2>Extracted fields (editable)</h2>
-
-            <div className="detail-section">
-              <label>
-                Title
-                <input
-                  type="text"
-                  value={fields.title}
-                  onChange={(event) => handleFieldChange('title', event.target.value)}
-                />
-              </label>
-
-              <label>
-                Company
-                <input
-                  type="text"
-                  value={fields.company}
-                  onChange={(event) => handleFieldChange('company', event.target.value)}
-                />
-              </label>
-
-              <label>
-                Location
-                <input
-                  type="text"
-                  value={fields.location}
-                  onChange={(event) => handleFieldChange('location', event.target.value)}
-                />
-              </label>
-
-              <label>
-                URL
-                <input
-                  type="text"
-                  value={fields.url}
-                  onChange={(event) => handleFieldChange('url', event.target.value)}
-                />
-              </label>
-
-              <label>
-                Source
-                <input
-                  type="text"
-                  value={fields.source}
-                  onChange={(event) => handleFieldChange('source', event.target.value)}
-                />
-              </label>
-            </div>
-
-            <div className="detail-section">
-              <label>
-                Seniority
-                <input
-                  type="text"
-                  value={fields.seniority}
-                  onChange={(event) => handleFieldChange('seniority', event.target.value)}
-                />
-              </label>
-
-              <label>
-                Summary
-                <textarea
-                  value={fields.summary}
-                  onChange={(event) => handleFieldChange('summary', event.target.value)}
-                  rows={5}
-                />
-              </label>
-
-              <label>
-                Keywords (comma-separated)
-                <input
-                  type="text"
-                  value={fields.keywords.join(', ')}
-                  onChange={(event) => handleFieldChange('keywords', event.target.value)}
-                />
-              </label>
-            </div>
-
-            <div className="detail-section">
-              <div className="fit-summary">
-                <strong>Fit:</strong>
-                <FitBadge fitClassification={fields?.fit_classification} fallbackLabel="Unavailable" />
-              </div>
-              {fields.fit_rationale ? <p className="fit-rationale">{fields.fit_rationale}</p> : null}
-            </div>
-            {hasDecision && decision && (
-              <div className="decision-block">
-                <p className="decision-heading">Decision</p>
-                {decision.headline ? <p>{decision.headline}</p> : null}
-                {decision.detail ? <p>{decision.detail}</p> : null}
-                {(decision.risk_flags?.length ?? 0) > 0 && (
-                  <>
-                    <p className="section-heading">
-                      <strong>Risk flags</strong>
-                    </p>
-                    <ul className="decision-list">
-                      {(decision.risk_flags ?? []).map((riskFlag, index) => (
-                        <li key={`risk-flag-${index}`}>{riskFlag}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                {(decision.clarifying_questions?.length ?? 0) > 0 && (
-                  <>
-                    <p className="section-heading">
-                      <strong>Clarifying questions</strong>
-                    </p>
-                    <ul className="decision-list">
-                      {(decision.clarifying_questions ?? []).map((question, index) => (
-                        <li key={`clarifying-question-${index}`}>{question}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-            )}
-
-            <div className="detail-section">
-              <Button type="button" onClick={handleSaveJob} disabled={isSaveDisabled}>
+            <section className="panel detail-section">
+              <h2>Extracted criteria</h2>
+              <p className="muted">
+                {criteria.job_basics.title || 'Untitled role'} at {criteria.job_basics.company_name || 'Unknown company'}
+              </p>
+              <p>{criteria.job_basics.job_summary || 'No summary extracted.'}</p>
+              <p>
+                {criteria.job_basics.location_text || 'Location unknown'} ·{' '}
+                {getWorkArrangementLabel(criteria.personal_life_signals.work_arrangement)} ·{' '}
+                {formatCompensationSummary(criteria.financial_signals)}
+              </p>
+              <p>
+                Seniority: {getSignalLabel(criteria.job_basics.seniority_level)} | Confidence:{' '}
+                {getSignalLabel(criteria.extraction_quality.confidence_level)}
+              </p>
+              <p>
+                Skills: {criteria.technical_signals.skills.map((skill) => skill.name).join(', ') || 'None detected'}
+              </p>
+              {criteria.extraction_quality.missing_critical_information.length > 0 ? (
+                <p className="muted">
+                  Missing info: {criteria.extraction_quality.missing_critical_information.join(', ')}
+                </p>
+              ) : null}
+              {saveError && <p className="error">{saveError}</p>}
+              <Button type="button" onClick={handleSaveJob} disabled={saveLoading}>
                 {saveLoading ? 'Saving…' : 'Save job'}
               </Button>
-
-              {saveError && <p className="error">{saveError}</p>}
-              {saveSuccess && <p className="success">{saveSuccess}</p>}
-              {savedJobId && <p className="muted">Saved job id: {savedJobId}</p>}
-            </div>
             </section>
           </section>
         )}

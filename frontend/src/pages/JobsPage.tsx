@@ -1,21 +1,31 @@
-import Badge from '../components/Badge'
-import FitIcon from '../components/FitIcon'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import ExtractJobDialog from '../components/ExtractJobDialog'
+import TechnicalSignalChips from '../components/TechnicalSignalChips'
 import { usePageHeader } from '../components/PageHeaderContext'
 import { apiFetch, getApiBaseUrl } from '../lib/api'
-import { getFinancialFitDisplay, getLifestyleFitDisplay, getStrategicFitDisplay } from '../lib/badges'
-import { getApiErrorMessage, getWorkArrangementLabel, getWorkScheduleSummary, Job, JobListResponse } from '../lib/jobs'
-import { FitFilter } from '../lib/jobDisplay'
+import {
+  buildSecondaryJobMeta,
+  getCompensationListLabel,
+  getWorkArrangementIcon,
+  isKnownValue,
+  isTextValue,
+  stripWorkArrangementFromLocation,
+} from '../lib/job-presenters'
+import {
+  getApiErrorMessage,
+  getSignalLabel,
+  getWorkArrangementLabel,
+  Job,
+  JobListResponse,
+} from '../lib/jobs'
 
 function JobsPage() {
   const navigate = useNavigate()
   const [jobsLoading, setJobsLoading] = useState(false)
   const [jobsError, setJobsError] = useState('')
   const [jobs, setJobs] = useState<Job[]>([])
-  const [fitFilter, setFitFilter] = useState<FitFilter>('all')
   const [compareSelectedIds, setCompareSelectedIds] = useState<string[]>([])
   const [compareHint, setCompareHint] = useState('')
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false)
@@ -26,7 +36,11 @@ function JobsPage() {
     try {
       getApiBaseUrl()
     } catch (baseUrlError) {
-      setJobsError(baseUrlError instanceof Error ? baseUrlError.message : 'Missing VITE_API_BASE_URL. Add it to frontend/.env.')
+      setJobsError(
+        baseUrlError instanceof Error
+          ? baseUrlError.message
+          : 'Missing VITE_API_BASE_URL. Add it to frontend/.env.',
+      )
       setJobs([])
       return
     }
@@ -51,7 +65,9 @@ function JobsPage() {
       })
     } catch (jobsRequestError) {
       if (jobsRequestError instanceof TypeError) {
-        setJobsError('Network error while loading jobs. Please check your connection and try again.')
+        setJobsError(
+          'Network error while loading jobs. Please check your connection and try again.',
+        )
       } else if (jobsRequestError instanceof Error) {
         setJobsError(jobsRequestError.message)
       } else {
@@ -76,7 +92,6 @@ function JobsPage() {
         return currentIds.filter((id) => id !== jobId)
       }
 
-      // Preserve selection order because compare URL order should stay stable.
       if (currentIds.length >= 2) {
         setCompareHint('Select only 2 jobs to compare.')
         return currentIds
@@ -85,17 +100,6 @@ function JobsPage() {
       return [...currentIds, jobId]
     })
   }
-
-  const filteredJobs = jobs.filter((job) => {
-    const fitClassification = job.analysis?.fit_classification
-    if (fitFilter === 'all') {
-      return true
-    }
-    if (fitFilter === 'unassessed') {
-      return !fitClassification
-    }
-    return fitClassification === fitFilter
-  })
 
   const canCompare = compareSelectedIds.length === 2
 
@@ -137,51 +141,42 @@ function JobsPage() {
           <section className="panel">
             {jobsLoading && <p>Loading saved jobs…</p>}
             {jobsError && <p className="error">{jobsError}</p>}
-            {!jobsLoading && !jobsError && jobs.length === 0 && <p className="muted">No saved jobs yet.</p>}
+            {!jobsLoading && !jobsError && jobs.length === 0 && (
+              <p className="muted">No saved jobs yet.</p>
+            )}
             {!jobsLoading && !jobsError && jobs.length > 0 && (
               <>
                 <div className="jobs-list-header">
-                  <div className="fit-filter-control">
-                    <select
-                      className="compact-select"
-                      aria-label="Filter jobs by fit"
-                      value={fitFilter}
-                      onChange={(event) => {
-                        setFitFilter(event.target.value as FitFilter)
-                        setCompareSelectedIds([])
-                        setCompareHint('')
-                      }}
-                    >
-                      <option value="all">All</option>
-                      <option value="strong_fit">Strong fit</option>
-                      <option value="acceptable_intermediate">Acceptable / Intermediate</option>
-                      <option value="misaligned">Misaligned</option>
-                      <option value="unassessed">Unassessed</option>
-                    </select>
-                  </div>
                   <p className="jobs-list-count">
-                    {filteredJobs.length} job{filteredJobs.length === 1 ? '' : 's'}
+                    {jobs.length} job{jobs.length === 1 ? '' : 's'}
                   </p>
+                  <Button type="button" onClick={handleCompareNavigation} disabled={!canCompare}>
+                    Compare selected
+                  </Button>
                 </div>
                 {compareHint && <p className="muted compare-hint">{compareHint}</p>}
-                {filteredJobs.length === 0 && <p className="muted">No jobs match this fit filter.</p>}
                 <ul className="jobs-list">
-                  {filteredJobs.map((job) => {
+                  {jobs.map((job) => {
                     const jobId = String(job.id)
                     const isCompared = compareSelectedIds.includes(jobId)
-                    const fitClassification = job.analysis?.fit_classification
-                    const dimensionAssessment = job.analysis?.dimension_assessment
-                    const workArrangement = job.analysis?.work_arrangement ?? 'unknown'
-                    const workScheduleSummary = getWorkScheduleSummary(job.analysis)
-                    const strategicFitDisplay = getStrategicFitDisplay(dimensionAssessment?.strategic_fit)
-                    const financialFitDisplay = getFinancialFitDisplay(dimensionAssessment?.financial_fit)
-                    const lifestyleFitDisplay = getLifestyleFitDisplay(dimensionAssessment?.lifestyle_fit)
-                    const showWorkSignals = workArrangement !== 'unknown' || Boolean(workScheduleSummary)
-                    const showDimensionSummary = Boolean(
-                      dimensionAssessment?.strategic_fit ||
-                        dimensionAssessment?.financial_fit ||
-                        dimensionAssessment?.lifestyle_fit,
+                    const criteria = job.criteria
+                    const basics = criteria.job_basics
+                    const personal = criteria.personal_life_signals
+                    const location = stripWorkArrangementFromLocation(
+                      job.location || basics.location_text || '',
+                      personal.work_arrangement,
                     )
+                    const workArrangement = getWorkArrangementLabel(personal.work_arrangement)
+                    const compensation = getCompensationListLabel(
+                      criteria.financial_signals,
+                      location,
+                      basics.country,
+                    )
+                    const confidence = getSignalLabel(criteria.extraction_quality.confidence_level)
+                    const secondaryMeta = buildSecondaryJobMeta(basics)
+                    const summary = basics.job_summary?.trim() ?? ''
+                    const WorkArrangementIcon = getWorkArrangementIcon(personal.work_arrangement)
+
                     return (
                       <li
                         key={job.id}
@@ -200,42 +195,82 @@ function JobsPage() {
                           <input
                             type="checkbox"
                             checked={isCompared}
-                            onClick={(event) => event.stopPropagation()}
                             onChange={(event) => {
                               event.stopPropagation()
                               handleToggleCompareSelection(jobId)
                             }}
-                            onKeyDown={(event) => event.stopPropagation()}
-                            aria-label={`Compare ${job.title || `job ${job.id}`}`}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`Select ${job.title || basics.title || 'job'} for comparison`}
                           />
                         </div>
-                        <div className="job-item-content">
-                          <div className="job-item-topline">
-                            <p className="job-item-title">{job.title || 'Untitled job'}</p>
-                            {fitClassification && <FitIcon fitClassification={fitClassification} />}
-                          </div>
-                          <p className="job-item-primary-meta">
-                            <span>{job.company || 'Unknown company'}</span>
-                            <span className="job-item-meta-separator" aria-hidden="true">
-                              •
-                            </span>
-                            <span>{job.location || 'Unknown location'}</span>
-                          </p>
-                          {showWorkSignals ? (
-                            <div className="job-item-signal-row" aria-label="Work location signals">
-                              {workArrangement !== 'unknown' ? (
-                                <Badge tone="subtle">{getWorkArrangementLabel(workArrangement)}</Badge>
+
+                        <div className="job-item-body">
+                          <div className="job-item-header">
+                            <div className="job-item-header-main">
+                              <h3 className="job-item-title">
+                                {job.title || basics.title || 'Untitled job'}
+                              </h3>
+                              <p className="job-item-primary-meta">
+                                {isTextValue(job.company || basics.company_name) ? (
+                                  <span>{job.company || basics.company_name}</span>
+                                ) : null}
+                                {isTextValue(location) ? (
+                                  <>
+                                    {isTextValue(job.company || basics.company_name) ? (
+                                      <span className="job-item-meta-separator" aria-hidden="true">
+                                        •
+                                      </span>
+                                    ) : null}
+                                    <span>{location}</span>
+                                  </>
+                                ) : null}
+                                {isKnownValue(personal.work_arrangement) ? (
+                                  <>
+                                    {isTextValue(job.company || basics.company_name) ||
+                                    isTextValue(location) ? (
+                                      <span className="job-item-meta-separator" aria-hidden="true">
+                                        •
+                                      </span>
+                                    ) : null}
+                                    <span className="job-item-work-arrangement">
+                                      <span
+                                        className="job-item-work-arrangement-icon"
+                                        aria-hidden="true"
+                                      >
+                                        {WorkArrangementIcon ? (
+                                          <WorkArrangementIcon size={13} strokeWidth={2} />
+                                        ) : null}
+                                      </span>
+                                      {workArrangement}
+                                    </span>
+                                  </>
+                                ) : null}
+                              </p>
+                              {secondaryMeta.length > 0 ? (
+                                <p className="job-item-secondary-meta">
+                                  {secondaryMeta.join(' — ')}
+                                </p>
                               ) : null}
-                              {workScheduleSummary ? <span className="job-item-signal-text">{workScheduleSummary}</span> : null}
+                              {compensation ? (
+                                <p className="job-item-compensation">
+                                  <span className="job-item-compensation-label">Compensation:</span>
+                                  <span className="job-item-compensation-value">
+                                    {compensation}
+                                  </span>
+                                </p>
+                              ) : null}
+                              {summary ? <p className="job-item-summary">{summary}</p> : null}
                             </div>
-                          ) : null}
-                          {showDimensionSummary ? (
-                            <div className="job-item-dimension-row" aria-label="Decision breakdown summary">
-                              <Badge tone={strategicFitDisplay.tone}>Strategic: {strategicFitDisplay.label}</Badge>
-                              <Badge tone={financialFitDisplay.tone}>Financial: {financialFitDisplay.label}</Badge>
-                              <Badge tone={lifestyleFitDisplay.tone}>Lifestyle: {lifestyleFitDisplay.label}</Badge>
+                            <div className="job-item-header-side">
+                              <span className="job-item-confidence">Confidence: {confidence}</span>
                             </div>
-                          ) : null}
+                          </div>
+
+                          <TechnicalSignalChips
+                            skills={criteria.technical_signals.skills}
+                            limit={4}
+                            compact
+                          />
                         </div>
                       </li>
                     )
@@ -246,15 +281,6 @@ function JobsPage() {
           </section>
         </section>
       </div>
-
-      {canCompare && (
-        <div className="jobs-compare-float" role="status" aria-live="polite">
-          <p className="jobs-compare-float-copy">2 jobs selected</p>
-          <Button type="button" size="compact" onClick={handleCompareNavigation}>
-            Compare jobs
-          </Button>
-        </div>
-      )}
 
       <ExtractJobDialog open={isExtractDialogOpen} onClose={() => setIsExtractDialogOpen(false)} />
     </div>
