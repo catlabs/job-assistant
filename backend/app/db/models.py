@@ -13,23 +13,22 @@ def _utc_now() -> datetime:
 
 
 class JobRecord(Base):
-    """Persist raw job fields plus an analysis snapshot.
+    """Persist raw job fields plus the extracted criteria snapshot.
 
-    SQLite dev note: create_all() will not add this column to an existing
-    jobs table; deleting backend/job_assistant.db is acceptable locally.
+    SQLite dev note: replacing an older fit-first jobs table is acceptable
+    locally when bootstrapping the criteria-first schema.
     """
 
     __tablename__ = "jobs"
 
     id = mapped_column(String(36), primary_key=True)
-    company_id = mapped_column(String(36), nullable=True, index=True)
     title = mapped_column(String(255), nullable=True)
     company = mapped_column(String(255), nullable=True)
     location = mapped_column(String(255), nullable=True)
     url = mapped_column(String(2048), nullable=True)
     source = mapped_column(String(100), nullable=False)
     description = mapped_column(Text, nullable=False)
-    analysis_json = mapped_column(Text, nullable=False)
+    criteria_json = mapped_column(Text, nullable=False)
     created_at = mapped_column(DateTime(timezone=True), nullable=False, index=True)
 
 

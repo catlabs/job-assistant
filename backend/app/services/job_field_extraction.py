@@ -1,6 +1,4 @@
-import json
 from functools import lru_cache
-from uuid import uuid4
 
 import httpx
 from fastapi import HTTPException, status
@@ -8,28 +6,24 @@ from openai import APIConnectionError, APIError, APITimeoutError, OpenAI
 from pydantic import ValidationError
 
 from app.core.config import get_settings
-from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse, ExtractedJobFields
-from app.services.extraction_fit_cache import get_extraction_fit_cache
-from app.services.job_fit_assessment import get_job_fit_assessment_service
-from app.services.job_signal_extraction import derive_work_arrangement, extract_compensation_display
+from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse, JobCriteria, SalaryCurrency
+from app.services.compensation_estimation import get_compensation_estimation_service
+from app.services.job_criteria import build_job_criteria
 from app.services.llm_call_logging import _extract_usage_tokens, log_llm_call
 from app.services.llm_operations import LlmOperation
-from app.services.text_fingerprint import fingerprint_text
 
 MAX_LLM_INPUT_CHARS = 12_000
 
-SYSTEM_PROMPT = """You extract structured job fields from job postings.
+SYSTEM_PROMPT = """You extract structured job criteria from job postings.
 Return only valid JSON matching the schema.
 Rules:
-- title: actual job title, else empty string
-- company: company name only, else empty string
-- location: most precise location available, else empty string
-- work_arrangement: exactly one of remote, hybrid, onsite, unknown
-- compensation_display: compact display string like "$120,000 - $140,000 / year" when clearly stated, else empty string
-- seniority: exactly one of Intern, Junior, Mid, Senior, Lead, Staff, or empty string
-- summary: 1 to 3 concise factual sentences, else empty string
-- keywords: up to 8 normalized relevant items, else []
-- Never include keys not defined in the schema
+- Keep claims factual and conservative.
+- Use unknown, null, empty string, or [] when the posting does not clearly support a value.
+- Do not infer salary, travel, relocation, or seniority more strongly than the text supports.
+- Leave financial_signals.estimated_compensation empty; inferred compensation is handled in a separate step.
+- For skills, include the main technologies and label importance as required, preferred, or mentioned.
+- job_summary should be a concise factual summary of the role.
+- Never include keys that are not defined in the schema.
 """
 
 
@@ -60,10 +54,8 @@ class JobFieldExtractionService:
             )
 
         llm_input = payload.raw_text[:MAX_LLM_INPUT_CHARS]
-        user_prompt = f"Extract fields from this job posting:\n\n{llm_input}"
+        user_prompt = f"Extract criteria from this job posting:\n\n{llm_input}"
         effective_model = payload.model or settings.openai_model
-        extraction_ref = str(uuid4())
-        log_metadata = json.dumps({"extraction_ref": extraction_ref})
 
         try:
             completion = self._client.beta.chat.completions.parse(
@@ -72,7 +64,7 @@ class JobFieldExtractionService:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
-                response_format=ExtractedJobFields,
+                response_format=JobCriteria,
                 temperature=0,
             )
             parsed = completion.choices[0].message.parsed
@@ -83,21 +75,24 @@ class JobFieldExtractionService:
                     model=completion.model or effective_model,
                     error_message="Missing parsed extraction response.",
                     job_id=None,
-                    extra_json=log_metadata,
                 )
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="LLM did not return structured extraction output.",
                 )
-            extracted = ExtractedJobFields.model_validate(parsed)
-            if extracted.work_arrangement == "unknown":
-                extracted.work_arrangement = derive_work_arrangement(
-                    extracted.title,
-                    extracted.location,
-                    payload.raw_text,
-                )
-            if not extracted.compensation_display:
-                extracted.compensation_display = extract_compensation_display(payload.raw_text) or ""
+
+            criteria = build_job_criteria(
+                title=parsed.job_basics.title or None,
+                company=parsed.job_basics.company_name or None,
+                location=parsed.job_basics.location_text or None,
+                description=payload.raw_text,
+                base_criteria=JobCriteria.model_validate(parsed),
+            )
+            criteria = self._apply_compensation_estimate(
+                criteria=criteria,
+                raw_text=payload.raw_text,
+                model=payload.model,
+            )
             prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(completion.usage)
             log_llm_call(
                 operation=LlmOperation.EXTRACT_FIELDS,
@@ -107,7 +102,6 @@ class JobFieldExtractionService:
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
                 job_id=None,
-                extra_json=log_metadata,
             )
         except APITimeoutError as exc:
             log_llm_call(
@@ -116,7 +110,6 @@ class JobFieldExtractionService:
                 model=effective_model,
                 error_message=str(exc),
                 job_id=None,
-                extra_json=log_metadata,
             )
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
@@ -129,7 +122,6 @@ class JobFieldExtractionService:
                 model=effective_model,
                 error_message=str(exc),
                 job_id=None,
-                extra_json=log_metadata,
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -142,43 +134,182 @@ class JobFieldExtractionService:
                 model=effective_model,
                 error_message=str(exc),
                 job_id=None,
-                extra_json=log_metadata,
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="LLM returned invalid extraction JSON.",
             ) from exc
 
-        fit_result = get_job_fit_assessment_service().assess_job_fit(
-            title=extracted.title or None,
-            company=extracted.company or None,
-            location=extracted.location or None,
-            description=payload.raw_text,
-            extra_json=log_metadata,
-        )
-        get_extraction_fit_cache().put(
-            extraction_ref=extraction_ref,
-            text_fingerprint=fingerprint_text(payload.raw_text),
-            fit_classification=fit_result.fit_classification,
-            fit_rationale=fit_result.fit_rationale,
-            decision=fit_result.decision,
-            dimension_assessment=fit_result.dimension_assessment,
-            decision_v2=fit_result.decision_v2,
-            profile_context_fingerprint=fit_result.profile_context_fingerprint,
-        )
+        return ExtractFieldsResponse(raw_text=payload.raw_text, criteria=criteria)
 
-        return ExtractFieldsResponse(
-            raw_text=payload.raw_text,
-            extraction_ref=extraction_ref,
-            fit_classification=fit_result.fit_classification,
-            fit_rationale=fit_result.fit_rationale,
-            decision=fit_result.decision,
-            dimension_assessment=fit_result.dimension_assessment,
-            decision_v2=fit_result.decision_v2,
-            **extracted.model_dump(),
+    def _apply_compensation_estimate(
+        self,
+        *,
+        criteria: JobCriteria,
+        raw_text: str,
+        model: str | None,
+    ) -> JobCriteria:
+        if not _should_estimate_compensation(criteria):
+            return criteria
+
+        estimate = get_compensation_estimation_service().estimate(
+            criteria=criteria,
+            raw_text=raw_text,
+            model=model,
         )
+        if estimate is None:
+            return criteria
+
+        updated = criteria.model_copy(deep=True)
+        try:
+            updated.financial_signals.estimated_compensation = (
+                updated.financial_signals.estimated_compensation.model_validate(estimate.model_dump())
+            )
+        except ValidationError as exc:
+            log_llm_call(
+                operation=LlmOperation.ESTIMATE_COMPENSATION,
+                status="error",
+                model=model or get_settings().openai_model,
+                error_message=f"Failed to map compensation estimate: {exc}",
+                job_id=None,
+            )
+            return criteria
+        updated = _normalize_estimated_compensation(updated)
+        if _has_estimated_compensation(updated):
+            updated.extraction_quality.missing_critical_information = [
+                item for item in updated.extraction_quality.missing_critical_information if item != "compensation"
+            ]
+            if (
+                updated.financial_signals.financial_clarity == "low"
+                and updated.financial_signals.estimated_compensation.confidence in {"high", "medium"}
+            ):
+                updated.financial_signals.financial_clarity = "medium"
+            ambiguity_notes = updated.extraction_quality.ambiguity_notes.strip()
+            estimate_note = "Compensation is estimated rather than stated explicitly."
+            if estimate_note not in ambiguity_notes:
+                updated.extraction_quality.ambiguity_notes = (
+                    f"{ambiguity_notes} {estimate_note}".strip() if ambiguity_notes else estimate_note
+                )
+        return updated
 
 
 @lru_cache
 def get_job_field_extraction_service() -> JobFieldExtractionService:
     return JobFieldExtractionService()
+
+
+def _should_estimate_compensation(criteria: JobCriteria) -> bool:
+    financial = criteria.financial_signals
+    has_explicit_salary_range = financial.salary_min is not None and (
+        financial.salary_max is not None or financial.salary_period != "unknown"
+    )
+    has_explicit_daily_rate_range = financial.daily_rate_min is not None and financial.daily_rate_max is not None
+    if has_explicit_salary_range or has_explicit_daily_rate_range:
+        return False
+
+    has_any_explicit_amount = any(
+        value is not None
+        for value in (
+            financial.salary_min,
+            financial.salary_max,
+            financial.daily_rate_min,
+            financial.daily_rate_max,
+        )
+    )
+    if not has_any_explicit_amount:
+        return True
+
+    # Still estimate when compensation exists only as a fragment that is not yet useful for display.
+    return financial.salary_currency == "unknown" or financial.salary_period == "unknown"
+
+
+def _has_estimated_compensation(criteria: JobCriteria) -> bool:
+    estimated = criteria.financial_signals.estimated_compensation
+    return any(
+        value is not None
+        for value in (
+            estimated.estimated_salary_min,
+            estimated.estimated_salary_max,
+            estimated.estimated_daily_rate_min,
+            estimated.estimated_daily_rate_max,
+        )
+    )
+
+
+def _normalize_estimated_compensation(criteria: JobCriteria) -> JobCriteria:
+    estimated = criteria.financial_signals.estimated_compensation
+    if estimated.estimated_currency != "unknown":
+        return criteria
+
+    inferred_currency = _infer_estimated_currency(criteria)
+    if inferred_currency == "unknown":
+        return criteria
+
+    estimated.estimated_currency = inferred_currency
+    if estimated.basis:
+        lowered_basis = estimated.basis.lower()
+        if "currency" not in lowered_basis and inferred_currency.lower() not in lowered_basis:
+            estimated.basis = f"{estimated.basis} Currency inferred as {inferred_currency} from location/context."
+    else:
+        estimated.basis = f"Currency inferred as {inferred_currency} from location/context."
+    return criteria
+
+
+def _infer_estimated_currency(criteria: JobCriteria) -> SalaryCurrency:
+    if criteria.financial_signals.salary_currency != "unknown":
+        return criteria.financial_signals.salary_currency
+
+    basics = criteria.job_basics
+    location_haystack = " " + " ".join(
+        value.lower()
+        for value in (basics.country, basics.city, basics.location_text)
+        if value
+    ) + " "
+
+    if any(token in location_haystack for token in ("united kingdom", "uk", "london", "england", "scotland", "wales")):
+        return "GBP"
+    if any(token in location_haystack for token in ("united states", " usa ", " us ", "new york", "san francisco", "seattle", "boston")):
+        return "USD"
+    if any(
+        token in location_haystack
+        for token in (
+            "belgium",
+            "belgique",
+            "belgie",
+            "netherlands",
+            "france",
+            "luxembourg",
+            "germany",
+            "ireland",
+            "spain",
+            "portugal",
+            "belgian",
+            "dutch",
+            "french",
+            "german",
+            "irish",
+            "spanish",
+            "portuguese",
+            "brussels",
+            "bruxelles",
+            "brussel",
+            "antwerp",
+            "antwerpen",
+            "ghent",
+            "gent",
+            "leuven",
+            "amsterdam",
+            "rotterdam",
+            "paris",
+            "lille",
+            "berlin",
+            "munich",
+            "dublin",
+            "madrid",
+            "barcelona",
+            "lisbon",
+            "porto",
+        )
+    ):
+        return "EUR"
+    return "unknown"

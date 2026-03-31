@@ -18,11 +18,12 @@ class AskService:
         referenced_job_ids = [selected_job.id] if selected_job else []
 
         if selected_job:
+            skills = [skill.name for skill in selected_job.criteria.technical_signals.skills] or ["none detected"]
             answer = (
                 f"Stub answer for '{payload.question}'. "
                 f"Using job '{selected_job.title or selected_job.id}' with "
-                f"{selected_job.analysis.seniority} seniority and keywords "
-                f"{selected_job.analysis.keywords or ['none detected']}."
+                f"{selected_job.criteria.job_basics.seniority_level} seniority and skills "
+                f"{skills}."
             )
         elif jobs:
             answer = (
@@ -47,8 +48,8 @@ class AskService:
                 profile_loaded=bool(profile_summary),
             ),
             follow_up_suggestions=[
-                "Ask for a fit summary for a specific job.",
-                "Ask which keywords are missing from your profile.",
+                "Ask for a criteria summary for a specific job.",
+                "Ask which required skills a job mentions.",
                 "Ask for a shortlist once more jobs are stored.",
             ],
         )

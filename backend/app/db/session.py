@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 from collections.abc import Iterator
+from contextlib import contextmanager
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -14,11 +14,11 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expi
 
 
 def create_db_and_tables() -> None:
+    _reset_sqlite_jobs_table_if_legacy()
     Base.metadata.create_all(bind=engine)
-    _migrate_sqlite_jobs_table()
 
 
-def _migrate_sqlite_jobs_table() -> None:
+def _reset_sqlite_jobs_table_if_legacy() -> None:
     if engine.dialect.name != "sqlite":
         return
 
@@ -27,11 +27,25 @@ def _migrate_sqlite_jobs_table() -> None:
         return
 
     columns = {column["name"] for column in inspector.get_columns("jobs")}
+    expected_columns = {
+        "id",
+        "title",
+        "company",
+        "location",
+        "url",
+        "source",
+        "description",
+        "criteria_json",
+        "created_at",
+    }
+    has_legacy_shape = "analysis_json" in columns or "company_id" in columns
+    missing_required_columns = not expected_columns.issubset(columns)
+
+    if not has_legacy_shape and not missing_required_columns:
+        return
+
     with engine.begin() as connection:
-        if "analysis_json" not in columns:
-            connection.execute(text("ALTER TABLE jobs ADD COLUMN analysis_json TEXT"))
-        if "company_id" not in columns:
-            connection.execute(text("ALTER TABLE jobs ADD COLUMN company_id VARCHAR(36)"))
+        connection.execute(text("DROP TABLE jobs"))
 
 
 @contextmanager

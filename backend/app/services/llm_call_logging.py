@@ -1,9 +1,6 @@
-import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
-
-from sqlalchemy import select
 
 from app.db.models import LlmCallLog
 from app.db.session import SessionLocal
@@ -38,50 +35,6 @@ def _normalize_job_id(job_id: str | None) -> str | None:
 
     normalized = job_id.strip()
     return normalized or None
-
-
-def bind_extraction_logs_to_job(*, extraction_ref: str, job_id: str) -> None:
-    """Back-link extraction logs to the persisted job when saved later."""
-
-    normalized_job_id = _normalize_job_id(job_id)
-    if not extraction_ref or normalized_job_id is None:
-        return
-
-    try:
-        session = SessionLocal()
-        try:
-            candidates = session.scalars(
-                select(LlmCallLog).where(
-                    LlmCallLog.job_id.is_(None),
-                    LlmCallLog.extra_json.is_not(None),
-                )
-            ).all()
-
-            mutated = False
-            for record in candidates:
-                if not record.extra_json:
-                    continue
-
-                try:
-                    payload = json.loads(record.extra_json)
-                except Exception:
-                    continue
-
-                if not isinstance(payload, dict):
-                    continue
-
-                if payload.get("extraction_ref") != extraction_ref:
-                    continue
-
-                record.job_id = normalized_job_id
-                mutated = True
-
-            if mutated:
-                session.commit()
-        finally:
-            session.close()
-    except Exception:
-        return
 
 
 def log_llm_call(

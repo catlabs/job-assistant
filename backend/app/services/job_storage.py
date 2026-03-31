@@ -5,13 +5,9 @@ from sqlalchemy import select
 
 from app.db.models import JobRecord
 from app.db.session import get_db_session
-from app.schemas.job import Job, JobAnalysis, JobCreateRequest
-from app.services.extraction_fit_cache import get_extraction_fit_cache
-from app.services.job_analysis import analyze_job_posting
-from app.services.job_fit_assessment import get_job_fit_assessment_service
-from app.services.job_signal_extraction import derive_work_arrangement, extract_compensation_display
-from app.services.llm_call_logging import bind_extraction_logs_to_job
-from app.services.text_fingerprint import fingerprint_text
+from app.schemas.extract_fields import JobCriteria
+from app.schemas.job import Job, JobCreateRequest
+from app.services.job_criteria import build_job_criteria
 
 
 class JobStorage:
@@ -19,23 +15,22 @@ class JobStorage:
 
     def create_job(self, payload: JobCreateRequest) -> Job:
         job_id = str(uuid4())
-        analysis = self._build_analysis(
-            payload.title,
-            payload.company,
-            payload.location,
-            payload.description,
-            payload.extraction_ref,
-            job_id=job_id,
+        criteria = build_job_criteria(
+            title=payload.title,
+            company=payload.company,
+            location=payload.location,
+            description=payload.description,
+            base_criteria=payload.criteria,
         )
         record = JobRecord(
             id=job_id,
-            title=payload.title or analysis.normalized_title,
-            company=payload.company or analysis.normalized_company,
-            location=payload.location or analysis.normalized_location,
+            title=_prefer_text(payload.title, criteria.job_basics.title),
+            company=_prefer_text(payload.company, criteria.job_basics.company_name),
+            location=_prefer_text(payload.location, criteria.job_basics.location_text),
             url=payload.url,
             source=payload.source,
             description=payload.description,
-            analysis_json=analysis.model_dump_json(),
+            criteria_json=criteria.model_dump_json(),
             created_at=datetime.now(timezone.utc),
         )
 
@@ -68,90 +63,39 @@ class JobStorage:
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
 
+        criteria = self._criteria_from_record(record)
         return Job(
             id=record.id,
-            title=record.title,
-            company=record.company,
-            location=record.location,
+            title=_prefer_text(record.title, criteria.job_basics.title),
+            company=_prefer_text(record.company, criteria.job_basics.company_name),
+            location=_prefer_text(record.location, criteria.job_basics.location_text),
             url=record.url,
             source=record.source,
             description=record.description,
-            analysis=self._analysis_from_record(record),
+            criteria=criteria,
             created_at=created_at,
         )
 
-    def _analysis_from_record(self, record: JobRecord) -> JobAnalysis:
-        if not record.analysis_json:
-            return JobAnalysis(summary="Analysis unavailable.")
+    def _criteria_from_record(self, record: JobRecord):
+        if record.criteria_json:
+            return JobCriteria.model_validate_json(record.criteria_json)
 
-        analysis = JobAnalysis.model_validate_json(record.analysis_json)
-        if analysis.work_arrangement == "unknown":
-            analysis.work_arrangement = derive_work_arrangement(
-                record.title,
-                record.location,
-                record.description,
-            )
-        if not analysis.compensation_display:
-            analysis.compensation_display = extract_compensation_display(record.description)
-        return analysis
-
-    def _build_analysis(
-        self,
-        title: str | None,
-        company: str | None,
-        location: str | None,
-        description: str,
-        extraction_ref: str | None,
-        *,
-        job_id: str | None = None,
-    ) -> JobAnalysis:
-        if extraction_ref and job_id:
-            bind_extraction_logs_to_job(extraction_ref=extraction_ref, job_id=job_id)
-
-        analysis = JobAnalysis(
-            **analyze_job_posting(
-                {
-                    "title": title,
-                    "company": company,
-                    "location": location,
-                    "description": description,
-                }
-            )
+        return build_job_criteria(
+            title=record.title,
+            company=record.company,
+            location=record.location,
+            description=record.description,
         )
 
-        cached_fit = None
-        profile_context_fingerprint = (
-            get_job_fit_assessment_service().get_profile_context_fingerprint() if extraction_ref else ""
-        )
-        if extraction_ref:
-            # Reuse fit from extraction only when ref and description fingerprint still match.
-            cached_fit = get_extraction_fit_cache().get_matching(
-                extraction_ref=extraction_ref,
-                text_fingerprint=fingerprint_text(description),
-                profile_context_fingerprint=profile_context_fingerprint,
-            )
 
-        if cached_fit is not None:
-            analysis.fit_classification = cached_fit.fit_classification
-            analysis.fit_rationale = cached_fit.fit_rationale
-            analysis.decision = cached_fit.decision
-            analysis.dimension_assessment = cached_fit.dimension_assessment
-            analysis.decision_v2 = cached_fit.decision_v2
-            return analysis
-
-        fit_result = get_job_fit_assessment_service().assess_job_fit(
-            title=title,
-            company=company,
-            location=location,
-            description=description,
-            job_id=job_id,
-        )
-        analysis.fit_classification = fit_result.fit_classification
-        analysis.fit_rationale = fit_result.fit_rationale
-        analysis.decision = fit_result.decision
-        analysis.dimension_assessment = fit_result.dimension_assessment
-        analysis.decision_v2 = fit_result.decision_v2
-        return analysis
+def _prefer_text(*values: str | None) -> str | None:
+    for value in values:
+        if value is None:
+            continue
+        cleaned = value.strip()
+        if cleaned:
+            return cleaned
+    return None
 
 
 InMemoryJobStorage = JobStorage
