@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Button from '../components/Button'
 import ExtractJobDialog from '../components/ExtractJobDialog'
 import TechnicalSignalChips from '../components/TechnicalSignalChips'
 import { usePageHeader } from '../components/PageHeaderContext'
@@ -15,7 +14,6 @@ import {
 } from '../lib/job-presenters'
 import {
   getApiErrorMessage,
-  getSignalLabel,
   getWorkArrangementLabel,
   Job,
   JobListResponse,
@@ -26,8 +24,6 @@ function JobsPage() {
   const [jobsLoading, setJobsLoading] = useState(false)
   const [jobsError, setJobsError] = useState('')
   const [jobs, setJobs] = useState<Job[]>([])
-  const [compareSelectedIds, setCompareSelectedIds] = useState<string[]>([])
-  const [compareHint, setCompareHint] = useState('')
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false)
 
   const fetchJobs = async () => {
@@ -59,10 +55,6 @@ function JobsPage() {
       const data = responseBody as JobListResponse
       const nextJobs = Array.isArray(data.jobs) ? data.jobs : []
       setJobs(nextJobs)
-      setCompareSelectedIds((currentIds) => {
-        const availableIds = new Set(nextJobs.map((job) => String(job.id)))
-        return currentIds.filter((id) => availableIds.has(id))
-      })
     } catch (jobsRequestError) {
       if (jobsRequestError instanceof TypeError) {
         setJobsError(
@@ -74,8 +66,6 @@ function JobsPage() {
         setJobsError('Could not load saved jobs.')
       }
       setJobs([])
-      setCompareSelectedIds([])
-      setCompareHint('')
     } finally {
       setJobsLoading(false)
     }
@@ -84,34 +74,6 @@ function JobsPage() {
   useEffect(() => {
     void fetchJobs()
   }, [])
-
-  const handleToggleCompareSelection = (jobId: string) => {
-    setCompareHint('')
-    setCompareSelectedIds((currentIds) => {
-      if (currentIds.includes(jobId)) {
-        return currentIds.filter((id) => id !== jobId)
-      }
-
-      if (currentIds.length >= 2) {
-        setCompareHint('Select only 2 jobs to compare.')
-        return currentIds
-      }
-
-      return [...currentIds, jobId]
-    })
-  }
-
-  const canCompare = compareSelectedIds.length === 2
-
-  const handleCompareNavigation = useCallback(() => {
-    if (!canCompare) {
-      return
-    }
-
-    const [a, b] = compareSelectedIds
-    const params = new URLSearchParams({ a, b })
-    navigate(`/jobs/compare?${params.toString()}`)
-  }, [canCompare, compareSelectedIds, navigate])
 
   const headerActions = useMemo(
     () => [
@@ -146,19 +108,11 @@ function JobsPage() {
             )}
             {!jobsLoading && !jobsError && jobs.length > 0 && (
               <>
-                <div className="jobs-list-header">
-                  <p className="jobs-list-count">
-                    {jobs.length} job{jobs.length === 1 ? '' : 's'}
-                  </p>
-                  <Button type="button" onClick={handleCompareNavigation} disabled={!canCompare}>
-                    Compare selected
-                  </Button>
-                </div>
-                {compareHint && <p className="muted compare-hint">{compareHint}</p>}
+                <p className="jobs-list-count">
+                  {jobs.length} job{jobs.length === 1 ? '' : 's'}
+                </p>
                 <ul className="jobs-list">
                   {jobs.map((job) => {
-                    const jobId = String(job.id)
-                    const isCompared = compareSelectedIds.includes(jobId)
                     const criteria = job.criteria
                     const basics = criteria.job_basics
                     const personal = criteria.personal_life_signals
@@ -172,99 +126,72 @@ function JobsPage() {
                       location,
                       basics.country,
                     )
-                    const confidence = getSignalLabel(criteria.extraction_quality.confidence_level)
                     const secondaryMeta = buildSecondaryJobMeta(basics)
-                    const summary = basics.job_summary?.trim() ?? ''
                     const WorkArrangementIcon = getWorkArrangementIcon(personal.work_arrangement)
 
                     return (
                       <li
                         key={job.id}
-                        className={`job-item ${isCompared ? 'job-item-selected' : ''}`}
-                        onClick={() => navigate(`/jobs/${jobId}`)}
+                        className="job-item"
+                        onClick={() => navigate(`/jobs/${job.id}`)}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault()
-                            navigate(`/jobs/${jobId}`)
+                            navigate(`/jobs/${job.id}`)
                           }
                         }}
                         role="link"
                         tabIndex={0}
                       >
-                        <div className="job-item-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={isCompared}
-                            onChange={(event) => {
-                              event.stopPropagation()
-                              handleToggleCompareSelection(jobId)
-                            }}
-                            onClick={(event) => event.stopPropagation()}
-                            aria-label={`Select ${job.title || basics.title || 'job'} for comparison`}
-                          />
-                        </div>
-
                         <div className="job-item-body">
-                          <div className="job-item-header">
-                            <div className="job-item-header-main">
-                              <h3 className="job-item-title">
-                                {job.title || basics.title || 'Untitled job'}
-                              </h3>
-                              <p className="job-item-primary-meta">
+                          <h3 className="job-item-title">
+                            {job.title || basics.title || 'Untitled job'}
+                          </h3>
+                          <p className="job-item-primary-meta">
+                            {isTextValue(job.company || basics.company_name) ? (
+                              <span>{job.company || basics.company_name}</span>
+                            ) : null}
+                            {isTextValue(location) ? (
+                              <>
                                 {isTextValue(job.company || basics.company_name) ? (
-                                  <span>{job.company || basics.company_name}</span>
-                                ) : null}
-                                {isTextValue(location) ? (
-                                  <>
-                                    {isTextValue(job.company || basics.company_name) ? (
-                                      <span className="job-item-meta-separator" aria-hidden="true">
-                                        •
-                                      </span>
-                                    ) : null}
-                                    <span>{location}</span>
-                                  </>
-                                ) : null}
-                                {isKnownValue(personal.work_arrangement) ? (
-                                  <>
-                                    {isTextValue(job.company || basics.company_name) ||
-                                    isTextValue(location) ? (
-                                      <span className="job-item-meta-separator" aria-hidden="true">
-                                        •
-                                      </span>
-                                    ) : null}
-                                    <span className="job-item-work-arrangement">
-                                      <span
-                                        className="job-item-work-arrangement-icon"
-                                        aria-hidden="true"
-                                      >
-                                        {WorkArrangementIcon ? (
-                                          <WorkArrangementIcon size={13} strokeWidth={2} />
-                                        ) : null}
-                                      </span>
-                                      {workArrangement}
-                                    </span>
-                                  </>
-                                ) : null}
-                              </p>
-                              {secondaryMeta.length > 0 ? (
-                                <p className="job-item-secondary-meta">
-                                  {secondaryMeta.join(' — ')}
-                                </p>
-                              ) : null}
-                              {compensation ? (
-                                <p className="job-item-compensation">
-                                  <span className="job-item-compensation-label">Compensation:</span>
-                                  <span className="job-item-compensation-value">
-                                    {compensation}
+                                  <span className="job-item-meta-separator" aria-hidden="true">
+                                    •
                                   </span>
-                                </p>
-                              ) : null}
-                              {summary ? <p className="job-item-summary">{summary}</p> : null}
-                            </div>
-                            <div className="job-item-header-side">
-                              <span className="job-item-confidence">Confidence: {confidence}</span>
-                            </div>
-                          </div>
+                                ) : null}
+                                <span>{location}</span>
+                              </>
+                            ) : null}
+                            {isKnownValue(personal.work_arrangement) ? (
+                              <>
+                                {isTextValue(job.company || basics.company_name) ||
+                                isTextValue(location) ? (
+                                  <span className="job-item-meta-separator" aria-hidden="true">
+                                    •
+                                  </span>
+                                ) : null}
+                                <span className="job-item-work-arrangement">
+                                  <span
+                                    className="job-item-work-arrangement-icon"
+                                    aria-hidden="true"
+                                  >
+                                    {WorkArrangementIcon ? (
+                                      <WorkArrangementIcon size={13} strokeWidth={2} />
+                                    ) : null}
+                                  </span>
+                                  {workArrangement}
+                                </span>
+                              </>
+                            ) : null}
+                          </p>
+                          {secondaryMeta.length > 0 ? (
+                            <p className="job-item-secondary-meta">{secondaryMeta.join(' — ')}</p>
+                          ) : null}
+                          {compensation ? (
+                            <p className="job-item-compensation">
+                              <span className="job-item-compensation-label">Compensation:</span>
+                              <span className="job-item-compensation-value">{compensation}</span>
+                            </p>
+                          ) : null}
 
                           <TechnicalSignalChips
                             skills={criteria.technical_signals.skills}

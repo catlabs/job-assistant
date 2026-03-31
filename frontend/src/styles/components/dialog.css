@@ -21,6 +21,10 @@
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
 }
 
+.dialog-panel-wide {
+  width: min(920px, 100%);
+}
+
 .dialog-header {
   display: flex;
   align-items: flex-start;
@@ -35,6 +39,22 @@
   overflow: auto;
   display: grid;
   gap: 1rem;
+}
+
+.dialog-close-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.dialog-close-button:hover {
+  color: var(--color-text);
 }
 
 @media (max-width: 760px) {

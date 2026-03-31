@@ -5,7 +5,6 @@ import Button, { getButtonClassName } from './components/Button'
 import { HeaderAction, PageHeaderConfig, PageHeaderProvider } from './components/PageHeaderContext'
 import CompanyDetailPage from './pages/CompanyDetailPage'
 import CompaniesPage from './pages/CompaniesPage'
-import JobComparePage from './pages/JobComparePage'
 import JobDetailPage from './pages/JobDetailPage'
 import JobsPage from './pages/JobsPage'
 import LlmLogsPage from './pages/LlmLogsPage'
@@ -140,7 +139,6 @@ function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/jobs" replace />} />
                 <Route path="/jobs" element={<JobsPage />} />
-                <Route path="/jobs/compare" element={<JobComparePage />} />
                 <Route path="/jobs/:jobId" element={<JobDetailPage />} />
                 <Route path="/companies" element={<CompaniesPage />} />
                 <Route path="/companies/:companyId" element={<CompanyDetailPage />} />

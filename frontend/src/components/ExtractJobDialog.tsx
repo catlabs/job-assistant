@@ -222,11 +222,22 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
   const criteria = fields?.criteria
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog dialog-wide" onClick={(event) => event.stopPropagation()}>
+    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="dialog-panel dialog-panel-wide"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="extract-job-title"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="dialog-header">
-          <h2>Extract job criteria</h2>
-          <button type="button" className="dialog-close-button" onClick={onClose} aria-label="Close dialog">
+          <h2 id="extract-job-title">Extract job criteria</h2>
+          <button
+            type="button"
+            className="dialog-close-button"
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
             ×
           </button>
         </div>
@@ -295,7 +306,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
             </div>
           </div>
         ) : null}
-      </div>
+      </section>
     </div>
   )
 }

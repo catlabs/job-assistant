@@ -486,7 +486,7 @@ function LlmLogsPage() {
                     </div>
                   </div>
                   <div className="llm-logs-table-wrap" onScroll={handleLogsScroll}>
-                    <table className="compare-table llm-logs-table">
+                    <table className="llm-logs-table">
                       <thead>
                         <tr>
                           <th>Time</th>
