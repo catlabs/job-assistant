@@ -13,6 +13,7 @@ from app.schemas.extract_fields import (
     SalaryPeriod,
     ScheduleFlexibilitySignal,
     SeniorityLevel,
+    SignalEvidence,
     SignalStrength,
     SkillCategory,
 )
@@ -221,7 +222,10 @@ def build_job_criteria(
             (r"\bequity\b", r"\bstock options?\b", r"\brsus?\b"),
         )
     if financial.financial_clarity == "low":
-        financial.financial_clarity = _detect_financial_clarity(financial, compensation.display)
+        detected_financial_clarity = _detect_financial_clarity(financial, compensation.display)
+        if detected_financial_clarity != financial.financial_clarity:
+            financial.financial_clarity = detected_financial_clarity
+            financial.financial_clarity_evidence = SignalEvidence()
     financial.financial_notes = financial.financial_notes or compensation.display
 
     strategic = criteria.strategic_signals

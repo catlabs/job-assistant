@@ -40,10 +40,50 @@ SkillImportance = Literal["required", "preferred", "mentioned"]
 
 MIN_RAW_TEXT_LENGTH = 40
 MAX_RAW_TEXT_LENGTH = 100_000
+MAX_EVIDENCE_QUOTES = 5
+MAX_EVIDENCE_QUOTE_CHARS = 500
+MAX_EVIDENCE_RATIONALE_CHARS = 240
 
 
 def _collapse(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
+
+
+def _normalize_quote(value: str) -> str:
+    return value.strip()
+
+
+class SignalEvidence(BaseModel):
+    quotes: list[str] = Field(default_factory=list)
+    rationale: str | None = None
+
+    @field_validator("quotes")
+    @classmethod
+    def normalize_quotes(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            cleaned = _normalize_quote(item)
+            if not cleaned:
+                continue
+            if len(cleaned) > MAX_EVIDENCE_QUOTE_CHARS:
+                cleaned = cleaned[:MAX_EVIDENCE_QUOTE_CHARS].rstrip()
+            key = cleaned.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append(cleaned)
+        return normalized[:MAX_EVIDENCE_QUOTES]
+
+    @field_validator("rationale")
+    @classmethod
+    def normalize_rationale(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = _collapse(value)
+        if not cleaned:
+            return None
+        return cleaned[:MAX_EVIDENCE_RATIONALE_CHARS]
 
 
 class ExtractFieldsRequest(BaseModel):
@@ -104,6 +144,13 @@ class JobBasics(BaseModel):
     contract_type: ContractType = "unknown"
     seniority_level: SeniorityLevel = "unknown"
     job_summary: str = ""
+    title_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    company_name_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    location_text_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    employment_type_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    contract_type_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    seniority_level_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    job_summary_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
 
     @field_validator("title", "company_name", "location_text", "country", "city", "job_summary")
     @classmethod
@@ -114,6 +161,7 @@ class JobBasics(BaseModel):
 class TechnicalSignals(BaseModel):
     skills: list[JobCriteriaSkill] = Field(default_factory=list)
     technical_notes: str = ""
+    technical_notes_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
 
     @field_validator("technical_notes")
     @classmethod
@@ -146,6 +194,15 @@ class PersonalLifeSignals(BaseModel):
     relocation_required: bool | None = None
     schedule_flexibility_signal: ScheduleFlexibilitySignal = "unknown"
     personal_life_notes: str = ""
+    work_arrangement_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    onsite_days_per_week_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    fully_remote_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    fully_onsite_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    travel_required_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    travel_percentage_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    relocation_required_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    schedule_flexibility_signal_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    personal_life_notes_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
 
     @field_validator("personal_life_notes")
     @classmethod
@@ -179,6 +236,16 @@ class FinancialSignals(BaseModel):
     financial_clarity: Literal["high", "medium", "low"] = "low"
     estimated_compensation: EstimatedCompensation = Field(default_factory=EstimatedCompensation)
     financial_notes: str = ""
+    salary_min_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    salary_max_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    salary_currency_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    salary_period_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    daily_rate_min_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    daily_rate_max_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    bonus_mentioned_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    equity_mentioned_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    financial_clarity_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    financial_notes_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
 
     @field_validator("financial_notes")
     @classmethod
@@ -195,6 +262,14 @@ class StrategicSignals(BaseModel):
     building_role: bool | None = None
     annotation_or_evaluation_only: bool | None = None
     strategic_notes: str = ""
+    ai_exposure_signal_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    product_ownership_signal_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    delivery_scope_signal_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    learning_potential_signal_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    market_value_signal_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    building_role_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    annotation_or_evaluation_only_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
+    strategic_notes_evidence: SignalEvidence = Field(default_factory=SignalEvidence)
 
     @field_validator("strategic_notes")
     @classmethod

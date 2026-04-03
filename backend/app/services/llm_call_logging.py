@@ -22,10 +22,20 @@ def _extract_usage_tokens(usage: Any) -> tuple[int | None, int | None, int | Non
     if usage is None:
         return None, None, None
 
+    prompt_tokens = getattr(usage, "prompt_tokens", None)
+    completion_tokens = getattr(usage, "completion_tokens", None)
+    total_tokens = getattr(usage, "total_tokens", None)
+
+    # Agents SDK usage uses input/output naming.
+    if prompt_tokens is None:
+        prompt_tokens = getattr(usage, "input_tokens", None)
+    if completion_tokens is None:
+        completion_tokens = getattr(usage, "output_tokens", None)
+
     return (
-        getattr(usage, "prompt_tokens", None),
-        getattr(usage, "completion_tokens", None),
-        getattr(usage, "total_tokens", None),
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
     )
 
 
