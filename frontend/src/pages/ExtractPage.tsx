@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import BlockingLoadingOverlay from '../components/BlockingLoadingOverlay'
 import Button from '../components/Button'
 import { apiFetch, getApiBaseUrl, getJsonHeaders } from '../lib/api'
 import {
@@ -13,6 +14,12 @@ import {
 } from '../lib/jobs'
 
 function ExtractPage() {
+  const processingSteps = [
+    'Reading job content',
+    'Extracting structured criteria',
+    'Identifying decision signals',
+    'Preparing job detail view',
+  ]
   const navigate = useNavigate()
   const [rawText, setRawText] = useState('')
   const [fields, setFields] = useState<ExtractFieldsResponse | null>(null)
@@ -23,6 +30,7 @@ function ExtractPage() {
   const [error, setError] = useState('')
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -155,6 +163,7 @@ function ExtractPage() {
     }
 
     setSaveLoading(true)
+    let savedJobId: string | null = null
 
     try {
       const response = await apiFetch('/jobs/', {
@@ -177,7 +186,9 @@ function ExtractPage() {
         throw new Error('Job saved but no job id was returned.')
       }
 
-      navigate(`/jobs/${String(jobId)}`)
+      savedJobId = String(jobId)
+      setIsRedirecting(true)
+      navigate(`/jobs/${savedJobId}`)
     } catch (saveRequestError) {
       if (saveRequestError instanceof TypeError) {
         setSaveError('Network error while saving. Please check your connection and try again.')
@@ -187,14 +198,24 @@ function ExtractPage() {
         setSaveError('Could not save this job posting.')
       }
     } finally {
-      setSaveLoading(false)
+      if (!savedJobId) {
+        setSaveLoading(false)
+      }
     }
   }
 
   const criteria = fields?.criteria
+  const isBlocking = loading || saveLoading || isRedirecting
 
   return (
-    <div className="content-page">
+    <div className="content-page extract-page-shell">
+      <BlockingLoadingOverlay
+        open={isBlocking}
+        title="Extracting structured job criteria"
+        message="Analyzing the posting and structuring decision signals. This can take a few seconds."
+        hint="Large postings may take a bit longer."
+        steps={processingSteps}
+      />
       <section className="page-heading content-block">
         <h1>Job Criteria Extractor</h1>
         <p className="page-subtitle">Paste a job description, extract criteria, then save it.</p>
@@ -210,6 +231,7 @@ function ExtractPage() {
               onChange={(event) => setRawText(event.target.value)}
               rows={10}
               placeholder="Paste job description text here"
+              disabled={isBlocking}
             />
             {models.length > 0 && (
               <label htmlFor="extractionModel">
@@ -218,7 +240,7 @@ function ExtractPage() {
                   id="extractionModel"
                   value={selectedModel}
                   onChange={(event) => setSelectedModel(event.target.value)}
-                  disabled={loading}
+                  disabled={isBlocking}
                 >
                   {models.map((model) => (
                     <option key={model} value={model}>
@@ -229,7 +251,7 @@ function ExtractPage() {
               </label>
             )}
             {modelLoadError && <p className="muted">{modelLoadError}</p>}
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={isBlocking}>
               {loading ? 'Extracting…' : 'Extract criteria'}
             </Button>
           </form>
@@ -267,7 +289,7 @@ function ExtractPage() {
                 </p>
               ) : null}
               {saveError && <p className="error">{saveError}</p>}
-              <Button type="button" onClick={handleSaveJob} disabled={saveLoading}>
+              <Button type="button" onClick={handleSaveJob} disabled={isBlocking}>
                 {saveLoading ? 'Saving…' : 'Save job'}
               </Button>
             </section>

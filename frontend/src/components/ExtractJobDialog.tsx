@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, getApiBaseUrl, getJsonHeaders } from '../lib/api'
 import Badge from './Badge'
+import BlockingLoadingOverlay from './BlockingLoadingOverlay'
 import Button from './Button'
 import {
   emptyFields,
@@ -19,6 +20,12 @@ type ExtractJobDialogProps = {
 }
 
 function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
+  const processingSteps = [
+    'Reading job content',
+    'Extracting structured criteria',
+    'Identifying decision signals',
+    'Preparing job detail view',
+  ]
   const navigate = useNavigate()
   const [rawText, setRawText] = useState('')
   const [fields, setFields] = useState<ExtractFieldsResponse | null>(null)
@@ -29,6 +36,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
   const [error, setError] = useState('')
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -90,7 +98,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !loading && !saveLoading && !isRedirecting) {
         onClose()
       }
     }
@@ -99,7 +107,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [onClose, open])
+  }, [isRedirecting, loading, onClose, open, saveLoading])
 
   const handleExtractFields = async (event: FormEvent) => {
     event.preventDefault()
@@ -178,6 +186,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
     }
 
     setSaveLoading(true)
+    let savedJobId: string | null = null
 
     try {
       const response = await apiFetch('/jobs/', {
@@ -200,8 +209,9 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
         throw new Error('Job saved but no job id was returned.')
       }
 
-      onClose()
-      navigate(`/jobs/${String(jobId)}`)
+      savedJobId = String(jobId)
+      setIsRedirecting(true)
+      navigate(`/jobs/${savedJobId}`)
     } catch (saveRequestError) {
       if (saveRequestError instanceof TypeError) {
         setSaveError('Network error while saving. Please check your connection and try again.')
@@ -211,7 +221,9 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
         setSaveError('Could not save this job posting.')
       }
     } finally {
-      setSaveLoading(false)
+      if (!savedJobId) {
+        setSaveLoading(false)
+      }
     }
   }
 
@@ -221,15 +233,25 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
 
   const criteria = fields?.criteria
 
+  const isBlocking = loading || saveLoading || isRedirecting
+
   return (
-    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+    <div className="dialog-backdrop" role="presentation" onClick={isBlocking ? undefined : onClose}>
       <section
-        className="dialog-panel dialog-panel-wide"
+        className="dialog-panel dialog-panel-wide extract-job-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="extract-job-title"
+        aria-busy={isBlocking}
         onClick={(event) => event.stopPropagation()}
       >
+        <BlockingLoadingOverlay
+          open={isBlocking}
+          title="Extracting structured job criteria"
+          message="Analyzing the posting and structuring decision signals. This can take a few seconds."
+          hint="Large postings may take a bit longer."
+          steps={processingSteps}
+        />
         <div className="dialog-header">
           <h2 id="extract-job-title">Extract job criteria</h2>
           <button
@@ -237,6 +259,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
             className="dialog-close-button"
             onClick={onClose}
             aria-label="Close dialog"
+            disabled={isBlocking}
           >
             ×
           </button>
@@ -251,6 +274,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
               onChange={(event) => setRawText(event.target.value)}
               rows={10}
               placeholder="Paste job description text here"
+              disabled={isBlocking}
             />
           </label>
 
@@ -261,7 +285,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
                 id="extractJobModel"
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
-                disabled={loading}
+                disabled={isBlocking}
               >
                 {models.map((model) => (
                   <option key={model} value={model}>
@@ -276,7 +300,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
           {error ? <p className="error">{error}</p> : null}
 
           <div className="dialog-actions">
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={isBlocking}>
               {loading ? 'Extracting…' : 'Extract criteria'}
             </Button>
           </div>
@@ -300,7 +324,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
             </p>
             {saveError ? <p className="error">{saveError}</p> : null}
             <div className="dialog-actions">
-              <Button type="button" onClick={handleSaveJob} disabled={saveLoading}>
+              <Button type="button" onClick={handleSaveJob} disabled={isBlocking}>
                 {saveLoading ? 'Saving…' : 'Save job'}
               </Button>
             </div>

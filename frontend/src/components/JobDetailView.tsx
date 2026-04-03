@@ -1,9 +1,19 @@
 import { Info } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import DecisionSignalRow from './DecisionSignalRow'
 import TechnicalSignalChips from './TechnicalSignalChips'
-import { FinancialSignals, getSignalLabel, getWorkArrangementLabel, Job } from '../lib/jobs'
+import {
+  FinancialSignals,
+  formatBoolean,
+  formatEnum,
+  getSignalLabel,
+  getWorkArrangementLabel,
+  Job,
+  SignalEvidence,
+} from '../lib/jobs'
 import {
   buildSecondaryJobMeta,
+  formatCompactMoney,
   getCompensationSummary,
   getWorkArrangementIcon,
   isKnownValue,
@@ -18,6 +28,12 @@ type JobDetailViewProps = {
 type DetailRow = {
   label: string
   value: string
+}
+
+type DecisionEvidence = {
+  evidenceContent: string | null
+  evidenceLabel: string
+  rawDescription: string | null
 }
 
 function CompensationSummaryBlock({
@@ -109,18 +125,107 @@ function CompensationSummaryBlock({
   )
 }
 
-function SummarySection({ title, content }: { title: string; content?: string | null }) {
-  if (!isTextValue(content)) {
+const formatNumberRange = (
+  minimum: number | null,
+  maximum: number | null,
+  prefix = '',
+  suffix = '',
+) => {
+  if (minimum === null && maximum === null) {
     return null
   }
 
-  return (
-    <section className="job-detail-subsection">
-      <h3 className="profile-section-title">{title}</h3>
-      <div className="profile-display-copy">{content}</div>
-    </section>
-  )
+  const formatBound = (value: number | null) =>
+    value === null ? null : `${prefix}${formatCompactMoney(value)}${suffix}`
+
+  const lower = formatBound(minimum)
+  const upper = formatBound(maximum)
+
+  if (lower && upper) {
+    return `${lower} - ${upper}`
+  }
+
+  return lower ?? upper
 }
+
+const getCurrencyPrefix = (currency: FinancialSignals['salary_currency']) => {
+  if (currency === 'EUR') {
+    return 'EUR '
+  }
+  if (currency === 'USD') {
+    return 'USD '
+  }
+  if (currency === 'GBP') {
+    return 'GBP '
+  }
+  return ''
+}
+
+const getSalarySuffix = (period: FinancialSignals['salary_period']) => {
+  if (period === 'yearly') {
+    return ' / year'
+  }
+  if (period === 'monthly') {
+    return ' / month'
+  }
+  if (period === 'hourly') {
+    return ' / hour'
+  }
+  if (period === 'daily') {
+    return ' / day'
+  }
+  return ''
+}
+
+const buildDecisionEvidence = (
+  evidenceList: Array<SignalEvidence | null | undefined>,
+  evidenceLabel: string,
+  description: string,
+): DecisionEvidence => ({
+  evidenceContent: formatEvidenceContent(evidenceList),
+  evidenceLabel,
+  rawDescription: description || null,
+})
+
+const formatEvidenceContent = (evidenceList: Array<SignalEvidence | null | undefined>) => {
+  const quotes: string[] = []
+  const rationales: string[] = []
+  const seenQuotes = new Set<string>()
+  const seenRationales = new Set<string>()
+
+  for (const evidence of evidenceList) {
+    if (!evidence) {
+      continue
+    }
+
+    for (const quote of evidence.quotes) {
+      const trimmedQuote = quote.trim()
+      if (!trimmedQuote || seenQuotes.has(trimmedQuote)) {
+        continue
+      }
+      seenQuotes.add(trimmedQuote)
+      quotes.push(trimmedQuote)
+    }
+
+    const rationale = evidence.rationale?.trim()
+    if (rationale && !seenRationales.has(rationale)) {
+      seenRationales.add(rationale)
+      rationales.push(rationale)
+    }
+  }
+
+  if (quotes.length === 0 && rationales.length === 0) {
+    return null
+  }
+
+  const parts = quotes.map((quote, index) => `${index + 1}. ${quote}`)
+  if (rationales.length > 0) {
+    parts.push(`Rationale: ${rationales.join(' ')}`)
+  }
+
+  return parts.join('\n\n---\n\n')
+}
+
 function JobDetailView({ job }: JobDetailViewProps) {
   const { criteria } = job
   const basics = criteria.job_basics
@@ -141,7 +246,18 @@ function JobDetailView({ job }: JobDetailViewProps) {
     { label: 'Confidence level', value: getSignalLabel(quality.confidence_level) },
   ]
   const secondaryMeta = buildSecondaryJobMeta(basics)
-
+  const salaryRange = formatNumberRange(
+    financial.salary_min,
+    financial.salary_max,
+    getCurrencyPrefix(financial.salary_currency),
+    getSalarySuffix(financial.salary_period),
+  )
+  const dailyRateRange = formatNumberRange(
+    financial.daily_rate_min,
+    financial.daily_rate_max,
+    getCurrencyPrefix(financial.salary_currency),
+    ' / day',
+  )
   return (
     <div className="job-detail-dashboard">
       <div className="job-detail-column job-detail-column-scroll">
@@ -211,9 +327,224 @@ function JobDetailView({ job }: JobDetailViewProps) {
           </div>
         </section>
 
-        <SummarySection title="Work & lifestyle" content={personal.personal_life_notes} />
+        <section className="job-detail-subsection">
+          <h3 className="profile-section-title">Work &amp; Lifestyle</h3>
+          <div className="decision-signal-panel">
+            <DecisionSignalRow
+              label="Work arrangement"
+              value={
+                isKnownValue(personal.work_arrangement)
+                  ? getWorkArrangementLabel(personal.work_arrangement)
+                  : null
+              }
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [personal.work_arrangement_evidence, personal.personal_life_notes_evidence],
+                'Work arrangement evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="On-site days per week"
+              value={personal.onsite_days_per_week}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [personal.onsite_days_per_week_evidence, personal.personal_life_notes_evidence],
+                'On-site schedule evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Travel required"
+              value={formatBoolean(personal.travel_required)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [personal.travel_required_evidence, personal.travel_percentage_evidence],
+                'Travel evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Travel percentage"
+              value={
+                personal.travel_percentage === null ? null : `${personal.travel_percentage}%`
+              }
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [personal.travel_percentage_evidence, personal.travel_required_evidence],
+                'Travel evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Relocation required"
+              value={formatBoolean(personal.relocation_required)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [personal.relocation_required_evidence, personal.personal_life_notes_evidence],
+                'Relocation evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Schedule flexibility"
+              value={formatEnum(personal.schedule_flexibility_signal)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [personal.schedule_flexibility_signal_evidence, personal.personal_life_notes_evidence],
+                'Schedule evidence',
+                description,
+              )}
+            />
+          </div>
+        </section>
 
-        <SummarySection title="Strategic summary" content={strategic.strategic_notes} />
+        <section className="job-detail-subsection">
+          <h3 className="profile-section-title">Financial</h3>
+          <div className="decision-signal-panel">
+            <DecisionSignalRow
+              label="Salary range"
+              value={salaryRange}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [
+                  financial.salary_min_evidence,
+                  financial.salary_max_evidence,
+                  financial.salary_currency_evidence,
+                  financial.salary_period_evidence,
+                  financial.financial_notes_evidence,
+                ],
+                'Compensation evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Daily rate"
+              value={dailyRateRange}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [
+                  financial.daily_rate_min_evidence,
+                  financial.daily_rate_max_evidence,
+                  financial.salary_currency_evidence,
+                  financial.salary_period_evidence,
+                  financial.financial_notes_evidence,
+                ],
+                'Compensation evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Bonus mentioned"
+              value={formatBoolean(financial.bonus_mentioned)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [financial.bonus_mentioned_evidence, financial.financial_notes_evidence],
+                'Bonus evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Equity mentioned"
+              value={formatBoolean(financial.equity_mentioned)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [financial.equity_mentioned_evidence, financial.financial_notes_evidence],
+                'Equity evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Financial clarity"
+              value={formatEnum(financial.financial_clarity)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [financial.financial_clarity_evidence, financial.financial_notes_evidence],
+                'Financial clarity evidence',
+                description,
+              )}
+            />
+          </div>
+        </section>
+
+        <section className="job-detail-subsection">
+          <h3 className="profile-section-title">Strategic</h3>
+          <div className="decision-signal-panel">
+            <DecisionSignalRow
+              label="AI exposure"
+              value={formatEnum(strategic.ai_exposure_signal)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [strategic.ai_exposure_signal_evidence, strategic.strategic_notes_evidence],
+                'AI exposure evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Product ownership"
+              value={formatEnum(strategic.product_ownership_signal)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [strategic.product_ownership_signal_evidence, strategic.strategic_notes_evidence],
+                'Product ownership evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Delivery scope"
+              value={formatEnum(strategic.delivery_scope_signal)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [strategic.delivery_scope_signal_evidence, strategic.strategic_notes_evidence],
+                'Delivery scope evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Learning potential"
+              value={formatEnum(strategic.learning_potential_signal)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [strategic.learning_potential_signal_evidence, strategic.strategic_notes_evidence],
+                'Learning potential evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Market value"
+              value={formatEnum(strategic.market_value_signal)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [strategic.market_value_signal_evidence, strategic.strategic_notes_evidence],
+                'Market value evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Building role"
+              value={formatBoolean(strategic.building_role)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [strategic.building_role_evidence, strategic.strategic_notes_evidence],
+                'Building role evidence',
+                description,
+              )}
+            />
+            <DecisionSignalRow
+              label="Annotation/evaluation only"
+              value={formatBoolean(strategic.annotation_or_evaluation_only)}
+              showEvidenceIcon
+              {...buildDecisionEvidence(
+                [
+                  strategic.annotation_or_evaluation_only_evidence,
+                  strategic.strategic_notes_evidence,
+                ],
+                'Annotation/evaluation evidence',
+                description,
+              )}
+            />
+          </div>
+        </section>
       </div>
 
       <div className="job-detail-column job-detail-column-right job-detail-column-scroll">

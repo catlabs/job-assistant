@@ -21,6 +21,10 @@
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
 }
 
+.extract-job-dialog {
+  position: relative;
+}
+
 .dialog-panel-wide {
   width: min(920px, 100%);
 }
@@ -57,6 +61,129 @@
   color: var(--color-text);
 }
 
+.dialog-close-button:disabled {
+  color: rgba(24, 24, 24, 0.35);
+  cursor: default;
+}
+
+.blocking-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(247, 247, 247, 0.84));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: blocking-loading-overlay-in 180ms ease-out;
+}
+
+.blocking-loading-card {
+  width: min(460px, 100%);
+  padding: 1.5rem;
+  border-radius: 20px;
+  border: 1px solid rgba(13, 13, 13, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.16);
+  display: grid;
+  gap: 1rem;
+}
+
+.blocking-loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 2px solid rgba(31, 41, 51, 0.14);
+  border-top-color: rgba(31, 41, 51, 0.7);
+  animation: blocking-loading-spin 900ms linear infinite;
+}
+
+.blocking-loading-copy {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.blocking-loading-copy h3 {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.blocking-loading-copy p {
+  color: rgba(24, 24, 24, 0.78);
+}
+
+.blocking-loading-hint {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+.blocking-loading-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.blocking-loading-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(31, 41, 51, 0.08);
+  background: linear-gradient(135deg, rgba(244, 246, 248, 0.9), rgba(255, 255, 255, 0.96));
+  color: rgba(24, 24, 24, 0.78);
+  animation: blocking-loading-step-glow 2.8s ease-in-out infinite;
+  animation-delay: calc(var(--step-index, 0) * 180ms);
+}
+
+.blocking-loading-step-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(31, 41, 51, 0.65);
+  box-shadow: 0 0 0 6px rgba(31, 41, 51, 0.08);
+  flex: 0 0 auto;
+}
+
+@keyframes blocking-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes blocking-loading-overlay-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes blocking-loading-step-glow {
+  0%,
+  100% {
+    border-color: rgba(31, 41, 51, 0.08);
+    background: linear-gradient(135deg, rgba(244, 246, 248, 0.9), rgba(255, 255, 255, 0.96));
+    box-shadow: none;
+  }
+
+  45% {
+    border-color: rgba(31, 41, 51, 0.16);
+    background: linear-gradient(135deg, rgba(238, 244, 255, 0.96), rgba(255, 255, 255, 0.98));
+    box-shadow: 0 10px 24px rgba(31, 41, 51, 0.08);
+  }
+}
+
 @media (max-width: 760px) {
   .dialog-backdrop {
     padding: 0.75rem;
@@ -64,5 +191,14 @@
 
   .dialog-header {
     flex-direction: column;
+  }
+
+  .blocking-loading-overlay {
+    padding: 1rem;
+  }
+
+  .blocking-loading-card {
+    padding: 1.25rem;
+    border-radius: 18px;
   }
 }

@@ -36,6 +36,11 @@ export type JobCriteriaSkill = {
   importance: SkillImportance
 }
 
+export type SignalEvidence = {
+  quotes: string[]
+  rationale?: string | null
+}
+
 export type JobBasics = {
   title: string
   company_name: string
@@ -46,11 +51,19 @@ export type JobBasics = {
   contract_type: ContractType
   seniority_level: SeniorityLevel
   job_summary: string
+  title_evidence: SignalEvidence
+  company_name_evidence: SignalEvidence
+  location_text_evidence: SignalEvidence
+  employment_type_evidence: SignalEvidence
+  contract_type_evidence: SignalEvidence
+  seniority_level_evidence: SignalEvidence
+  job_summary_evidence: SignalEvidence
 }
 
 export type TechnicalSignals = {
   skills: JobCriteriaSkill[]
   technical_notes: string
+  technical_notes_evidence: SignalEvidence
 }
 
 export type PersonalLifeSignals = {
@@ -63,6 +76,15 @@ export type PersonalLifeSignals = {
   relocation_required: boolean | null
   schedule_flexibility_signal: ScheduleFlexibilitySignal
   personal_life_notes: string
+  work_arrangement_evidence: SignalEvidence
+  onsite_days_per_week_evidence: SignalEvidence
+  fully_remote_evidence: SignalEvidence
+  fully_onsite_evidence: SignalEvidence
+  travel_required_evidence: SignalEvidence
+  travel_percentage_evidence: SignalEvidence
+  relocation_required_evidence: SignalEvidence
+  schedule_flexibility_signal_evidence: SignalEvidence
+  personal_life_notes_evidence: SignalEvidence
 }
 
 export type FinancialSignals = {
@@ -85,6 +107,16 @@ export type FinancialSignals = {
   equity_mentioned: boolean | null
   financial_clarity: 'high' | 'medium' | 'low'
   financial_notes: string
+  salary_min_evidence: SignalEvidence
+  salary_max_evidence: SignalEvidence
+  salary_currency_evidence: SignalEvidence
+  salary_period_evidence: SignalEvidence
+  daily_rate_min_evidence: SignalEvidence
+  daily_rate_max_evidence: SignalEvidence
+  bonus_mentioned_evidence: SignalEvidence
+  equity_mentioned_evidence: SignalEvidence
+  financial_clarity_evidence: SignalEvidence
+  financial_notes_evidence: SignalEvidence
 }
 
 export type StrategicSignals = {
@@ -96,6 +128,14 @@ export type StrategicSignals = {
   building_role: boolean | null
   annotation_or_evaluation_only: boolean | null
   strategic_notes: string
+  ai_exposure_signal_evidence: SignalEvidence
+  product_ownership_signal_evidence: SignalEvidence
+  delivery_scope_signal_evidence: SignalEvidence
+  learning_potential_signal_evidence: SignalEvidence
+  market_value_signal_evidence: SignalEvidence
+  building_role_evidence: SignalEvidence
+  annotation_or_evaluation_only_evidence: SignalEvidence
+  strategic_notes_evidence: SignalEvidence
 }
 
 export type ExtractionQuality = {
@@ -269,10 +309,18 @@ export const emptyCriteria: JobCriteria = {
     contract_type: 'unknown',
     seniority_level: 'unknown',
     job_summary: '',
+    title_evidence: { quotes: [], rationale: null },
+    company_name_evidence: { quotes: [], rationale: null },
+    location_text_evidence: { quotes: [], rationale: null },
+    employment_type_evidence: { quotes: [], rationale: null },
+    contract_type_evidence: { quotes: [], rationale: null },
+    seniority_level_evidence: { quotes: [], rationale: null },
+    job_summary_evidence: { quotes: [], rationale: null },
   },
   technical_signals: {
     skills: [],
     technical_notes: '',
+    technical_notes_evidence: { quotes: [], rationale: null },
   },
   personal_life_signals: {
     work_arrangement: 'unknown',
@@ -284,6 +332,15 @@ export const emptyCriteria: JobCriteria = {
     relocation_required: null,
     schedule_flexibility_signal: 'unknown',
     personal_life_notes: '',
+    work_arrangement_evidence: { quotes: [], rationale: null },
+    onsite_days_per_week_evidence: { quotes: [], rationale: null },
+    fully_remote_evidence: { quotes: [], rationale: null },
+    fully_onsite_evidence: { quotes: [], rationale: null },
+    travel_required_evidence: { quotes: [], rationale: null },
+    travel_percentage_evidence: { quotes: [], rationale: null },
+    relocation_required_evidence: { quotes: [], rationale: null },
+    schedule_flexibility_signal_evidence: { quotes: [], rationale: null },
+    personal_life_notes_evidence: { quotes: [], rationale: null },
   },
   financial_signals: {
     estimated_compensation: {
@@ -305,6 +362,16 @@ export const emptyCriteria: JobCriteria = {
     equity_mentioned: null,
     financial_clarity: 'low',
     financial_notes: '',
+    salary_min_evidence: { quotes: [], rationale: null },
+    salary_max_evidence: { quotes: [], rationale: null },
+    salary_currency_evidence: { quotes: [], rationale: null },
+    salary_period_evidence: { quotes: [], rationale: null },
+    daily_rate_min_evidence: { quotes: [], rationale: null },
+    daily_rate_max_evidence: { quotes: [], rationale: null },
+    bonus_mentioned_evidence: { quotes: [], rationale: null },
+    equity_mentioned_evidence: { quotes: [], rationale: null },
+    financial_clarity_evidence: { quotes: [], rationale: null },
+    financial_notes_evidence: { quotes: [], rationale: null },
   },
   strategic_signals: {
     ai_exposure_signal: 'unknown',
@@ -315,6 +382,14 @@ export const emptyCriteria: JobCriteria = {
     building_role: null,
     annotation_or_evaluation_only: null,
     strategic_notes: '',
+    ai_exposure_signal_evidence: { quotes: [], rationale: null },
+    product_ownership_signal_evidence: { quotes: [], rationale: null },
+    delivery_scope_signal_evidence: { quotes: [], rationale: null },
+    learning_potential_signal_evidence: { quotes: [], rationale: null },
+    market_value_signal_evidence: { quotes: [], rationale: null },
+    building_role_evidence: { quotes: [], rationale: null },
+    annotation_or_evaluation_only_evidence: { quotes: [], rationale: null },
+    strategic_notes_evidence: { quotes: [], rationale: null },
   },
   extraction_quality: {
     confidence_level: 'low',
@@ -424,6 +499,22 @@ export const getSignalLabel = (value?: string | null) => {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+export const formatBoolean = (value?: boolean | null) => {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  return value ? 'Yes' : 'No'
+}
+
+export const formatEnum = (value?: string | null) => {
+  if (!value || value === 'unknown') {
+    return null
+  }
+
+  return getSignalLabel(value)
 }
 
 export const getWorkScheduleSummary = (

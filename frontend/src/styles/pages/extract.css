@@ -1,3 +1,12 @@
+.extract-page-shell {
+  position: relative;
+}
+
+.extract-page-shell .blocking-loading-overlay {
+  position: fixed;
+  inset: 0;
+}
+
 .detail-section {
   display: grid;
   gap: var(--space-2);
