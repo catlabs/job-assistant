@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, getApiBaseUrl, getJsonHeaders } from '../lib/api'
 import Badge from './Badge'
@@ -6,6 +6,8 @@ import BlockingLoadingOverlay from './BlockingLoadingOverlay'
 import Button from './Button'
 import {
   emptyFields,
+  estimateCompensation,
+  extractJobFields,
   ExtractFieldsResponse,
   formatCompensationSummary,
   getApiErrorMessage,
@@ -20,12 +22,6 @@ type ExtractJobDialogProps = {
 }
 
 function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
-  const processingSteps = [
-    'Reading job content',
-    'Extracting structured criteria',
-    'Identifying decision signals',
-    'Preparing job detail view',
-  ]
   const navigate = useNavigate()
   const [rawText, setRawText] = useState('')
   const [fields, setFields] = useState<ExtractFieldsResponse | null>(null)
@@ -37,6 +33,10 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [compensationLoading, setCompensationLoading] = useState(false)
+  const [compensationError, setCompensationError] = useState('')
+  const [compensationStatus, setCompensationStatus] = useState('')
+  const compensationRunRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -127,32 +127,84 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
     }
 
     setLoading(true)
+    const runId = compensationRunRef.current + 1
+    compensationRunRef.current = runId
+    setCompensationLoading(false)
+    setCompensationError('')
+    setCompensationStatus('')
 
     try {
-      const requestBody: { raw_text: string; model?: string } = { raw_text: rawText }
-      if (models.length > 0 && selectedModel) {
-        requestBody.model = selectedModel
-      }
-
-      const response = await apiFetch('/jobs/extract-fields', {
-        method: 'POST',
-        headers: getJsonHeaders({
-          'Content-Type': 'application/json',
-        }),
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        throw new Error('Request failed')
-      }
-
-      const data: ExtractFieldsResponse = await response.json()
+      const model = models.length > 0 && selectedModel ? selectedModel : undefined
+      const data = await extractJobFields(rawText, model)
       setFields({ ...emptyFields, ...data })
-    } catch {
+      void runCompensationEstimation(data, runId, model)
+    } catch (extractError) {
       setFields(null)
-      setError('Could not extract criteria. Please try again with more complete text.')
+      if (extractError instanceof Error) {
+        setError(extractError.message)
+      } else {
+        setError('Could not extract criteria. Please try again with more complete text.')
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const runCompensationEstimation = async (data: ExtractFieldsResponse, runId: number, model?: string) => {
+    setCompensationLoading(true)
+    setCompensationError('')
+    setCompensationStatus('Estimating compensation…')
+
+    try {
+      const result = await estimateCompensation(data.raw_text, data.criteria, model)
+      if (runId !== compensationRunRef.current) {
+        return
+      }
+
+      if (result.status === 'completed') {
+        setFields((prev) =>
+          prev
+            ? {
+                ...prev,
+                criteria: {
+                  ...prev.criteria,
+                  financial_signals: {
+                    ...prev.criteria.financial_signals,
+                    estimated_compensation: result.estimated_compensation,
+                  },
+                },
+              }
+            : prev,
+        )
+        setCompensationStatus('Compensation estimate updated.')
+        return
+      }
+
+      if (result.status === 'skipped') {
+        if (result.reason === 'explicit_compensation_present') {
+          setCompensationStatus('Compensation estimation skipped: explicit compensation already present.')
+        } else {
+          setCompensationStatus('Compensation estimation skipped.')
+        }
+        return
+      }
+
+      setCompensationStatus('')
+      setCompensationError('Compensation estimation failed. You can continue with extracted criteria.')
+    } catch (compensationRequestError) {
+      if (runId !== compensationRunRef.current) {
+        return
+      }
+      setCompensationStatus('')
+      if (compensationRequestError instanceof Error) {
+        setCompensationError(compensationRequestError.message)
+      } else {
+        setCompensationError('Compensation estimation failed. You can continue with extracted criteria.')
+      }
+    } finally {
+      if (runId === compensationRunRef.current) {
+        setCompensationLoading(false)
+      }
     }
   }
 
@@ -211,7 +263,11 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
 
       savedJobId = String(jobId)
       setIsRedirecting(true)
-      navigate(`/jobs/${savedJobId}`)
+      navigate(`/jobs/${savedJobId}`, {
+        state: {
+          compensationPending: compensationLoading,
+        },
+      })
     } catch (saveRequestError) {
       if (saveRequestError instanceof TypeError) {
         setSaveError('Network error while saving. Please check your connection and try again.')
@@ -233,24 +289,22 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
 
   const criteria = fields?.criteria
 
-  const isBlocking = loading || saveLoading || isRedirecting
+  const isBusy = loading || saveLoading || isRedirecting
 
   return (
-    <div className="dialog-backdrop" role="presentation" onClick={isBlocking ? undefined : onClose}>
+    <div className="dialog-backdrop" role="presentation" onClick={isBusy ? undefined : onClose}>
       <section
         className="dialog-panel dialog-panel-wide extract-job-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="extract-job-title"
-        aria-busy={isBlocking}
+        aria-busy={isBusy}
         onClick={(event) => event.stopPropagation()}
       >
         <BlockingLoadingOverlay
-          open={isBlocking}
-          title="Extracting structured job criteria"
-          message="Analyzing the posting and structuring decision signals. This can take a few seconds."
-          hint="Large postings may take a bit longer."
-          steps={processingSteps}
+          open={loading}
+          title="Extracting job criteria"
+          message="Analyzing the job posting and structuring key signals. This can take a few seconds."
         />
         <div className="dialog-header">
           <h2 id="extract-job-title">Extract job criteria</h2>
@@ -259,7 +313,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
             className="dialog-close-button"
             onClick={onClose}
             aria-label="Close dialog"
-            disabled={isBlocking}
+            disabled={isBusy}
           >
             ×
           </button>
@@ -274,7 +328,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
               onChange={(event) => setRawText(event.target.value)}
               rows={10}
               placeholder="Paste job description text here"
-              disabled={isBlocking}
+              disabled={isBusy}
             />
           </label>
 
@@ -285,7 +339,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
                 id="extractJobModel"
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
-                disabled={isBlocking}
+                disabled={isBusy}
               >
                 {models.map((model) => (
                   <option key={model} value={model}>
@@ -300,7 +354,7 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
           {error ? <p className="error">{error}</p> : null}
 
           <div className="dialog-actions">
-            <Button type="submit" disabled={isBlocking}>
+            <Button type="submit" disabled={isBusy}>
               {loading ? 'Extracting…' : 'Extract criteria'}
             </Button>
           </div>
@@ -319,12 +373,15 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
               <Badge tone="subtle">{formatCompensationSummary(criteria.financial_signals)}</Badge>
               <Badge tone="subtle">Confidence: {getSignalLabel(criteria.extraction_quality.confidence_level)}</Badge>
             </div>
+            {compensationLoading ? <p className="muted">Estimating compensation…</p> : null}
+            {!compensationLoading && compensationStatus ? <p className="muted">{compensationStatus}</p> : null}
+            {compensationError ? <p className="error">{compensationError}</p> : null}
             <p className="muted">
               Skills: {criteria.technical_signals.skills.map((skill) => skill.name).join(', ') || 'None detected'}
             </p>
             {saveError ? <p className="error">{saveError}</p> : null}
             <div className="dialog-actions">
-              <Button type="button" onClick={handleSaveJob} disabled={isBlocking}>
+              <Button type="button" onClick={handleSaveJob} disabled={isBusy}>
                 {saveLoading ? 'Saving…' : 'Save job'}
               </Button>
             </div>

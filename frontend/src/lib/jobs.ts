@@ -158,6 +158,14 @@ export type ExtractFieldsResponse = {
   criteria: JobCriteria
 }
 
+export type CompensationEstimationStatus = 'completed' | 'skipped' | 'failed'
+
+export type EstimateCompensationResponse = {
+  status: CompensationEstimationStatus
+  estimated_compensation: FinancialSignals['estimated_compensation']
+  reason?: string | null
+}
+
 export type JobCreatePayload = {
   description: string
   title?: string
@@ -592,6 +600,102 @@ export const formatCompensationSummary = (financial: JobCriteria['financial_sign
   }
 
   return financial.financial_notes || 'Not specified'
+}
+
+export const extractJobFields = async (
+  rawText: string,
+  model?: string,
+  fallbackErrorMessage = 'Could not analyze this job. Please try again with more complete text.',
+): Promise<ExtractFieldsResponse> => {
+  getApiBaseUrl()
+
+  try {
+    const requestBody: { raw_text: string; model?: string } = { raw_text: rawText }
+    if (model) {
+      requestBody.model = model
+    }
+
+    const response = await apiFetch('/jobs/extract-fields', {
+      method: 'POST',
+      headers: getJsonHeaders({
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(requestBody),
+    })
+    const responseBody = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      if (response.status === 504) {
+        throw new Error('Extraction timed out. Please retry with shorter text or try again.')
+      }
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    return { ...emptyFields, ...(responseBody as ExtractFieldsResponse) }
+  } catch (extractError) {
+    if (extractError instanceof TypeError) {
+      throw new Error('Network error while extracting fields. Please check your connection and try again.')
+    }
+    if (extractError instanceof Error) {
+      throw extractError
+    }
+    throw new Error(fallbackErrorMessage)
+  }
+}
+
+export const estimateCompensation = async (
+  rawText: string,
+  criteria: JobCriteria,
+  model?: string,
+  fallbackErrorMessage = 'Compensation estimation is currently unavailable.',
+): Promise<EstimateCompensationResponse> => {
+  getApiBaseUrl()
+
+  try {
+    const requestBody: { raw_text: string; criteria: JobCriteria; model?: string } = {
+      raw_text: rawText,
+      criteria,
+    }
+    if (model) {
+      requestBody.model = model
+    }
+
+    const response = await apiFetch('/jobs/estimate-compensation', {
+      method: 'POST',
+      headers: getJsonHeaders({
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(requestBody),
+    })
+    const responseBody = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      if (response.status === 504) {
+        throw new Error('Compensation estimation timed out. You can continue with extracted criteria.')
+      }
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    const parsed = responseBody as Partial<EstimateCompensationResponse> | null
+    return {
+      status: parsed?.status === 'completed' || parsed?.status === 'skipped' || parsed?.status === 'failed' ? parsed.status : 'failed',
+      estimated_compensation: {
+        ...emptyCriteria.financial_signals.estimated_compensation,
+        ...(parsed?.estimated_compensation ?? {}),
+      },
+      reason: typeof parsed?.reason === 'string' ? parsed.reason : null,
+    }
+  } catch (estimateError) {
+    if (estimateError instanceof TypeError) {
+      throw new Error('Network error while estimating compensation. Please check your connection and try again.')
+    }
+    if (estimateError instanceof Error) {
+      throw estimateError
+    }
+    throw new Error(fallbackErrorMessage)
+  }
 }
 
 export const fetchJobById = async (

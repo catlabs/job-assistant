@@ -1,5 +1,3 @@
-import { CSSProperties } from 'react'
-
 type BlockingLoadingOverlayProps = {
   open: boolean
   title: string
@@ -13,7 +11,6 @@ function BlockingLoadingOverlay({
   title,
   message,
   hint,
-  steps = [],
 }: BlockingLoadingOverlayProps) {
   if (!open) {
     return null
@@ -28,20 +25,6 @@ function BlockingLoadingOverlay({
           <p>{message}</p>
           {hint ? <p className="blocking-loading-hint">{hint}</p> : null}
         </div>
-        {steps.length > 0 ? (
-          <ul className="blocking-loading-steps" aria-label="Processing steps">
-            {steps.map((step, index) => (
-              <li
-                key={step}
-                className="blocking-loading-step"
-                style={{ ['--step-index' as string]: index } as CSSProperties}
-              >
-                <span className="blocking-loading-step-dot" aria-hidden="true" />
-                <span>{step}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </div>
     </div>
   )

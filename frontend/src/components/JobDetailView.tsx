@@ -23,6 +23,7 @@ import {
 
 type JobDetailViewProps = {
   job: Job
+  compensationLoading?: boolean
 }
 
 type DetailRow = {
@@ -40,14 +41,28 @@ function CompensationSummaryBlock({
   financial,
   location,
   country,
+  loading = false,
 }: {
   financial: FinancialSignals
   location: string
   country?: string | null
+  loading?: boolean
 }) {
   const summary = getCompensationSummary(financial, location, country)
   const [isOpen, setIsOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement | null>(null)
+
+  if (!summary && loading) {
+    return (
+      <div className="job-detail-compensation-loading" role="status" aria-live="polite" aria-atomic="true">
+        <span className="job-detail-compensation-spinner" aria-hidden="true" />
+        <span className="job-detail-compensation-loading-copy">
+          <span className="job-detail-compensation-loading-title">Estimating salary range...</span>
+          <span className="job-detail-compensation-loading-text">Based on role, location, and job context.</span>
+        </span>
+      </div>
+    )
+  }
 
   if (!summary) {
     return null
@@ -226,7 +241,7 @@ const formatEvidenceContent = (evidenceList: Array<SignalEvidence | null | undef
   return parts.join('\n\n---\n\n')
 }
 
-function JobDetailView({ job }: JobDetailViewProps) {
+function JobDetailView({ job, compensationLoading = false }: JobDetailViewProps) {
   const { criteria } = job
   const basics = criteria.job_basics
   const technical = criteria.technical_signals
@@ -309,6 +324,7 @@ function JobDetailView({ job }: JobDetailViewProps) {
                 financial={financial}
                 location={location}
                 country={basics.country}
+                loading={compensationLoading}
               />
               {isTextValue(basics.job_summary) ? (
                 <div className="profile-display-copy">{basics.job_summary}</div>

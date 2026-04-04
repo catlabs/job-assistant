@@ -1,10 +1,12 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BlockingLoadingOverlay from '../components/BlockingLoadingOverlay'
 import Button from '../components/Button'
 import { apiFetch, getApiBaseUrl, getJsonHeaders } from '../lib/api'
 import {
   emptyFields,
+  estimateCompensation,
+  extractJobFields,
   ExtractFieldsResponse,
   formatCompensationSummary,
   getApiErrorMessage,
@@ -14,12 +16,6 @@ import {
 } from '../lib/jobs'
 
 function ExtractPage() {
-  const processingSteps = [
-    'Reading job content',
-    'Extracting structured criteria',
-    'Identifying decision signals',
-    'Preparing job detail view',
-  ]
   const navigate = useNavigate()
   const [rawText, setRawText] = useState('')
   const [fields, setFields] = useState<ExtractFieldsResponse | null>(null)
@@ -31,6 +27,10 @@ function ExtractPage() {
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [compensationLoading, setCompensationLoading] = useState(false)
+  const [compensationError, setCompensationError] = useState('')
+  const [compensationStatus, setCompensationStatus] = useState('')
+  const compensationRunRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -104,32 +104,84 @@ function ExtractPage() {
     }
 
     setLoading(true)
+    const runId = compensationRunRef.current + 1
+    compensationRunRef.current = runId
+    setCompensationLoading(false)
+    setCompensationError('')
+    setCompensationStatus('')
 
     try {
-      const requestBody: { raw_text: string; model?: string } = { raw_text: rawText }
-      if (models.length > 0 && selectedModel) {
-        requestBody.model = selectedModel
-      }
-
-      const response = await apiFetch('/jobs/extract-fields', {
-        method: 'POST',
-        headers: getJsonHeaders({
-          'Content-Type': 'application/json',
-        }),
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        throw new Error('Request failed')
-      }
-
-      const data: ExtractFieldsResponse = await response.json()
+      const model = models.length > 0 && selectedModel ? selectedModel : undefined
+      const data = await extractJobFields(rawText, model)
       setFields({ ...emptyFields, ...data })
-    } catch {
+      void runCompensationEstimation(data, runId, model)
+    } catch (extractError) {
       setFields(null)
-      setError('Could not analyze this job. Please try again with more complete text.')
+      if (extractError instanceof Error) {
+        setError(extractError.message)
+      } else {
+        setError('Could not analyze this job. Please try again with more complete text.')
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const runCompensationEstimation = async (data: ExtractFieldsResponse, runId: number, model?: string) => {
+    setCompensationLoading(true)
+    setCompensationError('')
+    setCompensationStatus('Estimating compensation…')
+
+    try {
+      const result = await estimateCompensation(data.raw_text, data.criteria, model)
+      if (runId !== compensationRunRef.current) {
+        return
+      }
+
+      if (result.status === 'completed') {
+        setFields((prev) =>
+          prev
+            ? {
+                ...prev,
+                criteria: {
+                  ...prev.criteria,
+                  financial_signals: {
+                    ...prev.criteria.financial_signals,
+                    estimated_compensation: result.estimated_compensation,
+                  },
+                },
+              }
+            : prev,
+        )
+        setCompensationStatus('Compensation estimate updated.')
+        return
+      }
+
+      if (result.status === 'skipped') {
+        if (result.reason === 'explicit_compensation_present') {
+          setCompensationStatus('Compensation estimation skipped: explicit compensation already present.')
+        } else {
+          setCompensationStatus('Compensation estimation skipped.')
+        }
+        return
+      }
+
+      setCompensationStatus('')
+      setCompensationError('Compensation estimation failed. You can continue with extracted criteria.')
+    } catch (compensationRequestError) {
+      if (runId !== compensationRunRef.current) {
+        return
+      }
+      setCompensationStatus('')
+      if (compensationRequestError instanceof Error) {
+        setCompensationError(compensationRequestError.message)
+      } else {
+        setCompensationError('Compensation estimation failed. You can continue with extracted criteria.')
+      }
+    } finally {
+      if (runId === compensationRunRef.current) {
+        setCompensationLoading(false)
+      }
     }
   }
 
@@ -188,7 +240,11 @@ function ExtractPage() {
 
       savedJobId = String(jobId)
       setIsRedirecting(true)
-      navigate(`/jobs/${savedJobId}`)
+      navigate(`/jobs/${savedJobId}`, {
+        state: {
+          compensationPending: compensationLoading,
+        },
+      })
     } catch (saveRequestError) {
       if (saveRequestError instanceof TypeError) {
         setSaveError('Network error while saving. Please check your connection and try again.')
@@ -205,16 +261,14 @@ function ExtractPage() {
   }
 
   const criteria = fields?.criteria
-  const isBlocking = loading || saveLoading || isRedirecting
+  const isBusy = loading || saveLoading || isRedirecting
 
   return (
     <div className="content-page extract-page-shell">
       <BlockingLoadingOverlay
-        open={isBlocking}
-        title="Extracting structured job criteria"
-        message="Analyzing the posting and structuring decision signals. This can take a few seconds."
-        hint="Large postings may take a bit longer."
-        steps={processingSteps}
+        open={loading}
+        title="Extracting job criteria"
+        message="Analyzing the job posting and structuring key signals. This can take a few seconds."
       />
       <section className="page-heading content-block">
         <h1>Job Criteria Extractor</h1>
@@ -231,7 +285,7 @@ function ExtractPage() {
               onChange={(event) => setRawText(event.target.value)}
               rows={10}
               placeholder="Paste job description text here"
-              disabled={isBlocking}
+              disabled={isBusy}
             />
             {models.length > 0 && (
               <label htmlFor="extractionModel">
@@ -240,7 +294,7 @@ function ExtractPage() {
                   id="extractionModel"
                   value={selectedModel}
                   onChange={(event) => setSelectedModel(event.target.value)}
-                  disabled={isBlocking}
+                  disabled={isBusy}
                 >
                   {models.map((model) => (
                     <option key={model} value={model}>
@@ -251,7 +305,7 @@ function ExtractPage() {
               </label>
             )}
             {modelLoadError && <p className="muted">{modelLoadError}</p>}
-            <Button type="submit" disabled={isBlocking}>
+            <Button type="submit" disabled={isBusy}>
               {loading ? 'Extracting…' : 'Extract criteria'}
             </Button>
           </form>
@@ -276,6 +330,9 @@ function ExtractPage() {
                 {getWorkArrangementLabel(criteria.personal_life_signals.work_arrangement)} ·{' '}
                 {formatCompensationSummary(criteria.financial_signals)}
               </p>
+              {compensationLoading && <p className="muted">Estimating compensation…</p>}
+              {!compensationLoading && compensationStatus && <p className="muted">{compensationStatus}</p>}
+              {compensationError && <p className="error">{compensationError}</p>}
               <p>
                 Seniority: {getSignalLabel(criteria.job_basics.seniority_level)} | Confidence:{' '}
                 {getSignalLabel(criteria.extraction_quality.confidence_level)}
@@ -289,7 +346,7 @@ function ExtractPage() {
                 </p>
               ) : null}
               {saveError && <p className="error">{saveError}</p>}
-              <Button type="button" onClick={handleSaveJob} disabled={isBlocking}>
+              <Button type="button" onClick={handleSaveJob} disabled={isBusy}>
                 {saveLoading ? 'Saving…' : 'Save job'}
               </Button>
             </section>
