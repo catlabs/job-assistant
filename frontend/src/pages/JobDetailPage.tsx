@@ -3,10 +3,7 @@ import { useLocation, useParams } from 'react-router-dom'
 import { usePageHeader } from '../components/PageHeaderContext'
 import JobDetailView from '../components/JobDetailView'
 import { getCompensationSummary, stripWorkArrangementFromLocation } from '../lib/job-presenters'
-import { ApiNotFoundError, fetchJobById, Job } from '../lib/jobs'
-
-const COMPENSATION_POLL_INTERVAL_MS = 3000
-const COMPENSATION_POLL_MAX_ATTEMPTS = 10
+import { ApiNotFoundError, estimateCompensation, fetchJobById, Job } from '../lib/jobs'
 
 type JobDetailNavigationState = {
   compensationPending?: boolean
@@ -81,51 +78,45 @@ function JobDetailPage() {
     }
 
     let cancelled = false
-    let timeoutId: ReturnType<typeof window.setTimeout> | null = null
-    let attempts = 0
 
-    const pollForCompensation = async () => {
+    const loadCompensationEstimate = async () => {
       try {
-        const nextJob = await fetchJobById(jobId)
+        const result = await estimateCompensation(job.description ?? '', job.criteria)
         if (cancelled) {
           return
         }
 
-        setJob(nextJob)
-
-        if (hasCompensationSummary(nextJob) || attempts >= COMPENSATION_POLL_MAX_ATTEMPTS) {
-          setCompensationLoading(false)
-          return
+        if (result.status === 'completed') {
+          setJob((current) =>
+            current
+              ? {
+                  ...current,
+                  criteria: {
+                    ...current.criteria,
+                    financial_signals: {
+                      ...current.criteria.financial_signals,
+                      estimated_compensation: result.estimated_compensation,
+                    },
+                  },
+                }
+              : current,
+          )
         }
       } catch {
+        // Keep the page usable even if the estimate request fails.
+      } finally {
         if (!cancelled) {
           setCompensationLoading(false)
         }
-        return
       }
-
-      attempts += 1
-      if (attempts >= COMPENSATION_POLL_MAX_ATTEMPTS) {
-        setCompensationLoading(false)
-        return
-      }
-
-      timeoutId = window.setTimeout(() => {
-        void pollForCompensation()
-      }, COMPENSATION_POLL_INTERVAL_MS)
     }
 
-    timeoutId = window.setTimeout(() => {
-      void pollForCompensation()
-    }, COMPENSATION_POLL_INTERVAL_MS)
+    void loadCompensationEstimate()
 
     return () => {
       cancelled = true
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
-      }
     }
-  }, [compensationLoading, job, jobId])
+  }, [compensationLoading, jobId])
 
   const pageHeaderConfig = useMemo(
     () => ({

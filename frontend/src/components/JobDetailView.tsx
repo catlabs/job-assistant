@@ -52,29 +52,6 @@ function CompensationSummaryBlock({
   const [isOpen, setIsOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement | null>(null)
 
-  if (!summary && loading) {
-    return (
-      <div className="job-detail-compensation-loading" role="status" aria-live="polite" aria-atomic="true">
-        <span className="job-detail-compensation-spinner" aria-hidden="true" />
-        <span className="job-detail-compensation-loading-copy">
-          <span className="job-detail-compensation-loading-title">Estimating salary range...</span>
-          <span className="job-detail-compensation-loading-text">Based on role, location, and job context.</span>
-        </span>
-      </div>
-    )
-  }
-
-  if (!summary) {
-    return null
-  }
-
-  const detailRows: DetailRow[] = [
-    { label: 'Source', value: summary.sourceDescription },
-    { label: 'Range', value: summary.rangeLabel },
-    ...(summary.confidence ? [{ label: 'Confidence', value: summary.confidence }] : []),
-    ...(summary.basis ? [{ label: 'Basis', value: summary.basis }] : []),
-  ]
-
   useEffect(() => {
     if (!isOpen) {
       return
@@ -100,6 +77,29 @@ function CompensationSummaryBlock({
       document.removeEventListener('keydown', handleEscape)
     }
   }, [isOpen])
+
+  if (!summary && loading) {
+    return (
+      <div className="job-detail-compensation-loading" role="status" aria-live="polite" aria-atomic="true">
+        <span className="job-detail-compensation-spinner" aria-hidden="true" />
+        <span className="job-detail-compensation-loading-copy">
+          <span className="job-detail-compensation-loading-title">Estimating salary range...</span>
+          <span className="job-detail-compensation-loading-text">Based on role, location, and job context.</span>
+        </span>
+      </div>
+    )
+  }
+
+  if (!summary) {
+    return null
+  }
+
+  const detailRows: DetailRow[] = [
+    { label: 'Source', value: summary.sourceDescription },
+    { label: 'Range', value: summary.rangeLabel },
+    ...(summary.confidence ? [{ label: 'Confidence', value: summary.confidence }] : []),
+    ...(summary.basis ? [{ label: 'Basis', value: summary.basis }] : []),
+  ]
 
   return (
     <div className="job-detail-compensation-inline" ref={popoverRef}>
