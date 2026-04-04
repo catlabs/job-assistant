@@ -81,6 +81,11 @@
   animation: blocking-loading-overlay-in 180ms ease-out;
 }
 
+.blocking-loading-overlay-fullscreen {
+  position: fixed;
+  z-index: 30;
+}
+
 .blocking-loading-card {
   width: min(460px, 100%);
   padding: 1.5rem;

@@ -287,9 +287,21 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
     return null
   }
 
+  if (loading) {
+    return (
+      <BlockingLoadingOverlay
+        open
+        fullScreen
+        modal
+        title="Extracting job criteria"
+        message="Analyzing the job posting and structuring key signals. This can take a few seconds."
+      />
+    )
+  }
+
   const criteria = fields?.criteria
 
-  const isBusy = loading || saveLoading || isRedirecting
+  const isBusy = saveLoading || isRedirecting
 
   return (
     <div className="dialog-backdrop" role="presentation" onClick={isBusy ? undefined : onClose}>
@@ -301,11 +313,6 @@ function ExtractJobDialog({ open, onClose }: ExtractJobDialogProps) {
         aria-busy={isBusy}
         onClick={(event) => event.stopPropagation()}
       >
-        <BlockingLoadingOverlay
-          open={loading}
-          title="Extracting job criteria"
-          message="Analyzing the job posting and structuring key signals. This can take a few seconds."
-        />
         <div className="dialog-header">
           <h2 id="extract-job-title">Extract job criteria</h2>
           <button
