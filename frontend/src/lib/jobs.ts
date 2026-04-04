@@ -698,6 +698,41 @@ export const estimateCompensation = async (
   }
 }
 
+export const createJob = async (
+  payload: JobCreatePayload,
+  fallbackErrorMessage = 'Could not save this job posting.',
+): Promise<Job> => {
+  getApiBaseUrl()
+
+  try {
+    const response = await apiFetch('/jobs/', {
+      method: 'POST',
+      headers: getJsonHeaders({
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(payload),
+    })
+    const responseBody = await response.json().catch(() => null)
+
+    if (response.status !== 201) {
+      const apiMessage = getApiErrorMessage(responseBody)
+      throw new Error(apiMessage || fallbackErrorMessage)
+    }
+
+    return responseBody as Job
+  } catch (jobCreateError) {
+    if (jobCreateError instanceof TypeError) {
+      throw new Error('Network error while saving. Please check your connection and try again.')
+    }
+
+    if (jobCreateError instanceof Error) {
+      throw jobCreateError
+    }
+
+    throw new Error(fallbackErrorMessage)
+  }
+}
+
 export const fetchJobById = async (
   jobId: string,
   fallbackErrorMessage = 'Could not load this job.',
