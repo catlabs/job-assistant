@@ -176,6 +176,11 @@ Environment variables use the prefix `JOB_ASSISTANT_` (see `backend/app/core/con
 - **`JOB_ASSISTANT_OPENAI_API_KEY`** — required for LLM-backed features such as `POST /jobs/extract-fields`
 - **`JOB_ASSISTANT_OPENAI_MODEL`** — extraction model (default `gpt-4.1-mini`)
 - **`JOB_ASSISTANT_OPENAI_TIMEOUT_SECONDS`** — OpenAI timeout (default `45`)
+- **`JOB_ASSISTANT_MOCK_EXTRACTION`** — when `true`, `POST /jobs/extract-fields` returns a realistic mock extraction payload without any OpenAI calls
+- **`JOB_ASSISTANT_MOCK_COMPENSATION`** — when `true`, `POST /jobs/estimate-compensation` returns mocked compensation outcomes without any OpenAI calls
+- **`JOB_ASSISTANT_MOCK_EXTRACTION_DELAY_MS`** — artificial extraction delay in milliseconds (default `2000`)
+- **`JOB_ASSISTANT_MOCK_COMPENSATION_DELAY_MS`** — artificial compensation delay in milliseconds (default `1500`)
+- **`JOB_ASSISTANT_MOCK_COMPENSATION_MODE`** — mock compensation behavior: `success`, `skipped`, or `error` (default `success`)
 - **`JOB_ASSISTANT_DEBUG`** — keep this `false` in production
 - **`JOB_ASSISTANT_HOST` / `JOB_ASSISTANT_PORT`** — used by `python -m app.main`; production values depend on whether you bind directly or only behind a local reverse proxy
 
