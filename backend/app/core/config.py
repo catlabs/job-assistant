@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -24,6 +25,11 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = Field(default=None)
     openai_model: str = Field(default="gpt-4.1-mini")
     openai_timeout_seconds: float = Field(default=45.0, gt=0)
+    mock_extraction: bool = Field(default=False)
+    mock_compensation: bool = Field(default=False)
+    mock_extraction_delay_ms: int = Field(default=2000, ge=0)
+    mock_compensation_delay_ms: int = Field(default=1500, ge=0)
+    mock_compensation_mode: Literal["success", "skipped", "error"] = Field(default="success")
     cors_allow_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: list(DEFAULT_CORS_ALLOW_ORIGINS)
     )

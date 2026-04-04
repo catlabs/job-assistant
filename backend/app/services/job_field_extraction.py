@@ -1,3 +1,6 @@
+import asyncio
+import logging
+import time
 from functools import lru_cache
 
 from fastapi import HTTPException, status
@@ -10,8 +13,14 @@ from app.schemas.extract_fields import (
     EstimateCompensationResponse,
     ExtractFieldsRequest,
     ExtractFieldsResponse,
+    ExtractionQuality,
     FinancialSignals,
+    JobBasics,
     JobCriteria,
+    JobCriteriaSkill,
+    PersonalLifeSignals,
+    StrategicSignals,
+    TechnicalSignals,
 )
 from app.services.job_extraction_agents import (
     JobAnalysisAgentError,
@@ -24,10 +33,17 @@ from app.services.job_criteria import build_job_criteria
 from app.services.llm_call_logging import _extract_usage_tokens, log_llm_call
 from app.services.llm_operations import LlmOperation
 
+logger = logging.getLogger(__name__)
+
 
 class JobFieldExtractionService:
     async def extract_fields(self, payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
         settings = get_settings()
+        if settings.mock_extraction:
+            logger.info("Using mock extraction")
+            await asyncio.sleep(settings.mock_extraction_delay_ms / 1000)
+            return ExtractFieldsResponse(raw_text=payload.raw_text, criteria=_build_mock_job_criteria())
+
         api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
         if not api_key:
             raise HTTPException(
@@ -122,6 +138,33 @@ class JobFieldExtractionService:
 
     def estimate_compensation(self, payload: EstimateCompensationRequest) -> EstimateCompensationResponse:
         criteria = payload.criteria.model_copy(deep=True)
+        settings = get_settings()
+        if settings.mock_compensation:
+            logger.info("Using mock compensation")
+            time.sleep(settings.mock_compensation_delay_ms / 1000)
+            if settings.mock_compensation_mode == "success":
+                return EstimateCompensationResponse(
+                    status="completed",
+                    estimated_compensation=FinancialSignals.EstimatedCompensation(
+                        estimated_salary_min=105000,
+                        estimated_salary_max=135000,
+                        estimated_currency="EUR",
+                        confidence="medium",
+                        basis="Mock market range for Senior Backend Engineer roles in Western Europe.",
+                    ),
+                )
+            if settings.mock_compensation_mode == "skipped":
+                return EstimateCompensationResponse(
+                    status="skipped",
+                    estimated_compensation=criteria.financial_signals.estimated_compensation,
+                    reason=_compensation_skip_reason(criteria),
+                )
+            return EstimateCompensationResponse(
+                status="failed",
+                estimated_compensation=criteria.financial_signals.estimated_compensation,
+                reason="compensation_estimation_unavailable",
+            )
+
         if not needs_market_intelligence(criteria):
             return EstimateCompensationResponse(
                 status="skipped",
@@ -218,3 +261,72 @@ def _compensation_skip_reason(criteria: JobCriteria) -> str:
         return "explicit_compensation_present"
 
     return "estimation_not_needed"
+
+
+def _build_mock_job_criteria() -> JobCriteria:
+    return JobCriteria(
+        job_basics=JobBasics(
+            title="Senior Backend Engineer (Python/FastAPI)",
+            company_name="NovaLedger",
+            location_text="Paris, France",
+            country="France",
+            city="Paris",
+            employment_type="full_time",
+            contract_type="employee",
+            seniority_level="senior",
+            job_summary=(
+                "Own backend APIs and data pipelines for a B2B analytics product, "
+                "with strong autonomy on architecture and delivery quality."
+            ),
+        ),
+        technical_signals=TechnicalSignals(
+            skills=[
+                JobCriteriaSkill(name="Python", category="programming_language", importance="required"),
+                JobCriteriaSkill(name="FastAPI", category="framework", importance="required"),
+                JobCriteriaSkill(name="PostgreSQL", category="data_storage", importance="required"),
+                JobCriteriaSkill(name="Docker", category="devops", importance="preferred"),
+                JobCriteriaSkill(name="AWS", category="cloud_infra", importance="mentioned"),
+            ],
+            technical_notes="Backend-focused role with ownership from API design to production operations.",
+        ),
+        personal_life_signals=PersonalLifeSignals(
+            work_arrangement="hybrid",
+            onsite_days_per_week=2,
+            fully_remote=False,
+            fully_onsite=False,
+            travel_required=False,
+            relocation_required=False,
+            schedule_flexibility_signal="medium",
+            personal_life_notes="Hybrid setup with predictable collaboration days.",
+        ),
+        financial_signals=FinancialSignals(
+            salary_min=None,
+            salary_max=None,
+            salary_currency="unknown",
+            salary_period="unknown",
+            daily_rate_min=None,
+            daily_rate_max=None,
+            bonus_mentioned=True,
+            equity_mentioned=False,
+            financial_clarity="low",
+            estimated_compensation=FinancialSignals.EstimatedCompensation(),
+            financial_notes="No explicit base salary range found in the posting.",
+        ),
+        strategic_signals=StrategicSignals(
+            ai_exposure_signal="medium",
+            product_ownership_signal="high",
+            delivery_scope_signal="backend_only",
+            learning_potential_signal="high",
+            market_value_signal="high",
+            building_role=True,
+            annotation_or_evaluation_only=False,
+            strategic_notes=(
+                "Role emphasizes product ownership and backend architecture decisions with growth potential."
+            ),
+        ),
+        extraction_quality=ExtractionQuality(
+            confidence_level="medium",
+            missing_critical_information=["compensation details", "hiring process timeline"],
+            ambiguity_notes="Compensation and interview stages are not specified.",
+        ),
+    )
