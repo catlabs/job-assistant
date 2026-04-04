@@ -175,7 +175,7 @@ Environment variables use the prefix `JOB_ASSISTANT_` (see `backend/app/core/con
 - **`JOB_ASSISTANT_CORS_ALLOW_ORIGINS`** — comma-separated CORS origin list; set this to the real deployed frontend origin(s) in production
 - **`JOB_ASSISTANT_OPENAI_API_KEY`** — required for LLM-backed features such as `POST /jobs/extract-fields`
 - **`JOB_ASSISTANT_OPENAI_MODEL`** — extraction model (default `gpt-4.1-mini`)
-- **`JOB_ASSISTANT_OPENAI_TIMEOUT_SECONDS`** — OpenAI timeout (default `20`)
+- **`JOB_ASSISTANT_OPENAI_TIMEOUT_SECONDS`** — OpenAI timeout (default `45`)
 - **`JOB_ASSISTANT_DEBUG`** — keep this `false` in production
 - **`JOB_ASSISTANT_HOST` / `JOB_ASSISTANT_PORT`** — used by `python -m app.main`; production values depend on whether you bind directly or only behind a local reverse proxy
 
@@ -203,6 +203,7 @@ A future multi-profile storage layer can keep the same API shape and swap the pe
 | POST   | `/jobs/`    | Create job     |
 | GET    | `/jobs/`    | List jobs      |
 | POST   | `/jobs/extract-fields` | Stateless LLM field extraction, protected when API key is configured |
+| POST   | `/jobs/estimate-compensation` | Stateless compensation estimation enrichment, protected when API key is configured |
 | GET    | `/jobs/{id}`| Get one job    |
 | POST   | `/ask/`     | Placeholder Q&A |
 | GET    | `/profile/` | Load current profile |
