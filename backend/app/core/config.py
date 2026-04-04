@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     api_key: SecretStr | None = Field(default=None)
     openai_api_key: SecretStr | None = Field(default=None)
     openai_model: str = Field(default="gpt-4.1-mini")
-    openai_timeout_seconds: float = Field(default=20.0, gt=0)
+    openai_timeout_seconds: float = Field(default=45.0, gt=0)
     cors_allow_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: list(DEFAULT_CORS_ALLOW_ORIGINS)
     )

@@ -37,6 +37,7 @@ SkillCategory = Literal[
     "architecture_practice",
 ]
 SkillImportance = Literal["required", "preferred", "mentioned"]
+CompensationEstimationStatus = Literal["completed", "skipped", "failed"]
 
 MIN_RAW_TEXT_LENGTH = 40
 MAX_RAW_TEXT_LENGTH = 100_000
@@ -316,3 +317,44 @@ class JobCriteria(BaseModel):
 class ExtractFieldsResponse(BaseModel):
     raw_text: str
     criteria: JobCriteria = Field(default_factory=JobCriteria)
+
+
+class EstimateCompensationRequest(BaseModel):
+    raw_text: str = Field(
+        min_length=1,
+        max_length=MAX_RAW_TEXT_LENGTH,
+        description="Raw pasted job posting text.",
+    )
+    criteria: JobCriteria = Field(default_factory=JobCriteria)
+    model: str | None = Field(
+        default=None,
+        description="Optional extraction model override from a curated backend allowlist.",
+    )
+
+    @field_validator("raw_text")
+    @classmethod
+    def validate_raw_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) < MIN_RAW_TEXT_LENGTH:
+            raise ValueError(f"raw_text must contain at least {MIN_RAW_TEXT_LENGTH} characters.")
+        return value
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        allowed_models = get_allowed_extraction_models()
+        if value not in allowed_models:
+            allowed_values = ", ".join(allowed_models)
+            raise ValueError(f"model must be one of: {allowed_values}")
+        return value
+
+
+class EstimateCompensationResponse(BaseModel):
+    status: CompensationEstimationStatus
+    estimated_compensation: FinancialSignals.EstimatedCompensation = Field(
+        default_factory=FinancialSignals.EstimatedCompensation
+    )
+    reason: str | None = None

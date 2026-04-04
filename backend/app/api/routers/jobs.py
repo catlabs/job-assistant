@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.config import get_settings
 from app.core.security import require_api_key
 from app.schemas.extract_fields import (
+    EstimateCompensationRequest,
+    EstimateCompensationResponse,
     ExtractFieldsRequest,
     ExtractFieldsResponse,
     ExtractionModelsResponse,
@@ -29,9 +31,15 @@ def list_jobs() -> JobListResponse:
 
 
 @router.post("/extract-fields", response_model=ExtractFieldsResponse, dependencies=[Depends(require_api_key)])
-def extract_job_fields(payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
+async def extract_job_fields(payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
     service = get_job_field_extraction_service()
-    return service.extract_fields(payload)
+    return await service.extract_fields(payload)
+
+
+@router.post("/estimate-compensation", response_model=EstimateCompensationResponse, dependencies=[Depends(require_api_key)])
+def estimate_compensation(payload: EstimateCompensationRequest) -> EstimateCompensationResponse:
+    service = get_job_field_extraction_service()
+    return service.estimate_compensation(payload)
 
 
 @router.get("/extraction-models", response_model=ExtractionModelsResponse)

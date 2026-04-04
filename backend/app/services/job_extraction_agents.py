@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, cast
@@ -57,11 +55,7 @@ class JobAnalysisAgentResult:
     usage: Any
 
 
-def run_job_analysis_agent(*, raw_text: str, model: str) -> JobAnalysisAgentResult:
-    return _run_async_in_sync_context(_run_job_analysis_agent_async(raw_text=raw_text, model=model))
-
-
-async def _run_job_analysis_agent_async(*, raw_text: str, model: str) -> JobAnalysisAgentResult:
+async def run_job_analysis_agent(*, raw_text: str, model: str) -> JobAnalysisAgentResult:
     settings = get_settings()
     api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
     if not api_key:
@@ -121,19 +115,6 @@ def _resolve_run_model(*, result: Any, fallback_model: str) -> str:
 def _resolve_run_usage(result: Any) -> Any:
     context_wrapper = getattr(result, "context_wrapper", None)
     return getattr(context_wrapper, "usage", None)
-
-
-def _run_async_in_sync_context(awaitable: Any) -> Any:
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(awaitable)
-
-    # If an event loop is already running in this thread, execute in a dedicated
-    # worker thread to avoid nested-loop runtime errors.
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(asyncio.run, awaitable)
-        return future.result()
 
 
 def run_market_intelligence_agent(

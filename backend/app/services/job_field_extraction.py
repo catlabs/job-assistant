@@ -5,7 +5,14 @@ from openai import APIConnectionError, APIError, APITimeoutError
 from pydantic import ValidationError
 
 from app.core.config import get_settings
-from app.schemas.extract_fields import ExtractFieldsRequest, ExtractFieldsResponse, JobCriteria
+from app.schemas.extract_fields import (
+    EstimateCompensationRequest,
+    EstimateCompensationResponse,
+    ExtractFieldsRequest,
+    ExtractFieldsResponse,
+    FinancialSignals,
+    JobCriteria,
+)
 from app.services.job_extraction_agents import (
     JobAnalysisAgentError,
     merge_market_enrichment,
@@ -19,7 +26,7 @@ from app.services.llm_operations import LlmOperation
 
 
 class JobFieldExtractionService:
-    def extract_fields(self, payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
+    async def extract_fields(self, payload: ExtractFieldsRequest) -> ExtractFieldsResponse:
         settings = get_settings()
         api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
         if not api_key:
@@ -35,7 +42,7 @@ class JobFieldExtractionService:
 
         try:
             # Agent 1: extract structured criteria directly from raw text.
-            job_analysis_result = run_job_analysis_agent(
+            job_analysis_result = await run_job_analysis_agent(
                 raw_text=payload.raw_text,
                 model=effective_model,
             )
@@ -49,19 +56,8 @@ class JobFieldExtractionService:
             )
             # Deterministic evidence policy.
             criteria = _validate_evidence_quotes(criteria=criteria, raw_text=payload.raw_text)
-            # Agent 2: market intelligence enrichment, only when policy allows it.
-            if needs_market_intelligence(criteria):
-                market_enrichment = run_market_intelligence_agent(
-                    criteria=criteria,
-                    raw_text=payload.raw_text,
-                    model=payload.model,
-                )
-                # Deterministic merge policy.
-                criteria = merge_market_enrichment(
-                    criteria=criteria,
-                    market_enrichment=market_enrichment,
-                    model=payload.model,
-                )
+            # Phase 1 response keeps a stable empty estimate shape.
+            criteria.financial_signals.estimated_compensation = FinancialSignals.EstimatedCompensation()
 
             prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(job_analysis_result.usage)
             log_llm_call(
@@ -124,6 +120,37 @@ class JobFieldExtractionService:
 
         return ExtractFieldsResponse(raw_text=payload.raw_text, criteria=criteria)
 
+    def estimate_compensation(self, payload: EstimateCompensationRequest) -> EstimateCompensationResponse:
+        criteria = payload.criteria.model_copy(deep=True)
+        if not needs_market_intelligence(criteria):
+            return EstimateCompensationResponse(
+                status="skipped",
+                estimated_compensation=criteria.financial_signals.estimated_compensation,
+                reason=_compensation_skip_reason(criteria),
+            )
+
+        market_enrichment = run_market_intelligence_agent(
+            criteria=criteria,
+            raw_text=payload.raw_text,
+            model=payload.model,
+        )
+        if market_enrichment is None:
+            return EstimateCompensationResponse(
+                status="failed",
+                estimated_compensation=criteria.financial_signals.estimated_compensation,
+                reason="compensation_estimation_unavailable",
+            )
+
+        merged = merge_market_enrichment(
+            criteria=criteria,
+            market_enrichment=market_enrichment,
+            model=payload.model,
+        )
+        return EstimateCompensationResponse(
+            status="completed",
+            estimated_compensation=merged.financial_signals.estimated_compensation,
+        )
+
 
 @lru_cache
 def get_job_field_extraction_service() -> JobFieldExtractionService:
@@ -167,3 +194,27 @@ def _quote_in_raw_text(*, quote: str, raw_text_variants: set[str]) -> bool:
         collapsed_quote.lower(),
     }
     return any(candidate and candidate in raw_text for candidate in candidates for raw_text in raw_text_variants)
+
+
+def _compensation_skip_reason(criteria: JobCriteria) -> str:
+    financial = criteria.financial_signals
+    has_explicit_salary_range = financial.salary_min is not None and (
+        financial.salary_max is not None or financial.salary_period != "unknown"
+    )
+    has_explicit_daily_rate_range = financial.daily_rate_min is not None and financial.daily_rate_max is not None
+    if has_explicit_salary_range or has_explicit_daily_rate_range:
+        return "explicit_compensation_present"
+
+    has_any_explicit_amount = any(
+        value is not None
+        for value in (
+            financial.salary_min,
+            financial.salary_max,
+            financial.daily_rate_min,
+            financial.daily_rate_max,
+        )
+    )
+    if has_any_explicit_amount and financial.salary_currency != "unknown" and financial.salary_period != "unknown":
+        return "explicit_compensation_present"
+
+    return "estimation_not_needed"
